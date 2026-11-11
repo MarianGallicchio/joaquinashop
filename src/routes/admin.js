@@ -25,7 +25,7 @@ import { methodsForCountry } from "../payments/index.js";
 import { getAutomationStatus, runAutomations } from "../automations.js";
 import { listBackups, createBackup, restoreBackup, backupStatus } from "../backups.js";
 import { getAllProducts, CATEGORIES, BASE_PRODUCTS } from "../catalog.js";
-import { setOverride, upsertCustomProduct, saveUploadedImage, listOverrides } from "../product-overrides.js";
+import { setOverride, upsertCustomProduct, saveUploadedImage, listOverrides, deleteCustomProduct } from "../product-overrides.js";
 
 export const admin = express.Router();
 
@@ -472,6 +472,28 @@ admin.post("/products", (req, res, next) => {
     };
     upsertCustomProduct(product);
     res.json({ ok: true, product: getAllProducts().find((p) => p.id === id) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+
+admin.delete("/products/:id", (req, res, next) => {
+  try {
+    const id = String(req.params.id);
+    const db = getDb();
+    const isCustom = (db.customProducts || []).some((p) => p.id === id);
+    const isBase = BASE_PRODUCTS.some((p) => p.id === id);
+    if (!isCustom && !isBase) return res.status(404).json({ error: "Producto no encontrado." });
+    if (isCustom) {
+      deleteCustomProduct(id);
+      // también quitar override residual si existiera
+      if (db.productOverrides && db.productOverrides[id]) { delete db.productOverrides[id]; save(); }
+      return res.json({ ok: true, deleted: true, id });
+    }
+    // Producto base: se oculta de la tienda (no se puede borrar del catálogo base)
+    setOverride(id, { published: false });
+    return res.json({ ok: true, hidden: true, id });
   } catch (error) {
     next(error);
   }

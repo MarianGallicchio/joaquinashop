@@ -38,7 +38,7 @@ api.get("/catalog", (req, res) => {
       arsPerUsd: config.store.arsPerUsd,
     },
     categories: CATEGORIES,
-    products: getAllProducts().map((product) => ({
+    products: getAllProducts({ includeUnpublished: false }).map((product) => ({
       ...product,
       stock: getStock(product.id),
       costArs: undefined,

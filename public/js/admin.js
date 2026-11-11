@@ -1158,7 +1158,10 @@ function viewProductos() {
         <td class="num">${nf(sales?.units || 0)}<br><small style="color:var(--muted)">${sales ? ars(sales.revenue || 0) : '—'}</small></td>
         <td>${stockEditor({id:p.id, name:p.name, stock})}<small style="display:block;color:var(--muted);margin-top:4px">Umbral bajo: ${Number(inv.lowStockThreshold || 5)}</small></td>
         <td>${status}<br><small style="color:var(--muted)">${p.published === false ? 'No publicado' : 'Publicado'}</small></td>
-        <td style="text-align:right"><button class="admin-btn admin-btn--primary" data-edit-product="${escapeHtml(p.id)}" style="font-size:11px;padding:7px 12px">Editar</button></td>
+        <td style="text-align:right;white-space:nowrap">
+          <button class="admin-btn admin-btn--primary" data-edit-product="${escapeHtml(p.id)}" style="font-size:11px;padding:7px 12px">Editar</button>
+          <button class="admin-btn" data-delete-product="${escapeHtml(p.id)}" data-delete-name="${escapeHtml(p.name || p.id)}" data-delete-custom="${p.isCustom ? '1' : '0'}" style="font-size:11px;padding:7px 12px;color:#7f2d20;border-color:rgba(127,45,32,0.25)">Eliminar</button>
+        </td>
       </tr>`;
   }).join('');
 
@@ -1279,6 +1282,27 @@ function bindProductos() {
   document.querySelectorAll('[data-edit-product]').forEach((btn) => btn.addEventListener('click', () => {
     state.editingProductId = btn.dataset.editProduct; render();
     setTimeout(() => document.querySelector('#product-editor')?.scrollIntoView({ behavior: 'smooth' }), 50);
+  }));
+  document.querySelectorAll('[data-delete-product]').forEach((btn) => btn.addEventListener('click', async () => {
+    const id = btn.dataset.deleteProduct;
+    const name = btn.dataset.deleteName || id;
+    const isCustom = btn.dataset.deleteCustom === '1';
+    const msg = isCustom
+      ? `¿Eliminar "${name}"? Esta acción borra el producto personalizado del inventario.`
+      : `¿Ocultar "${name}" de la tienda? Es un producto base del catálogo: se despublicará (podés volver a publicarlo editándolo).`;
+    if (!window.confirm(msg)) return;
+    btn.disabled = true;
+    try {
+      const res = await adminApi('/api/admin/products/' + encodeURIComponent(id), { method: 'DELETE' });
+      toast(res.deleted ? 'Producto eliminado.' : 'Producto ocultado de la tienda.');
+      state.adminProducts = null;
+      await loadProducts();
+      await loadOverview({ silent: true });
+      render();
+    } catch (e) {
+      toast(e.message, { error: true });
+      btn.disabled = false;
+    }
   }));
   document.querySelector('#close-product-editor')?.addEventListener('click', () => { state.editingProductId = null; render(); });
   document.querySelectorAll('[data-stock-save]').forEach((btn) => btn.addEventListener('click', () => saveStock(btn)));

@@ -661,11 +661,11 @@ function mergeList() {
   return { overrides, custom };
 }
 
-export function getProducts() {
-  return getAllProducts().filter((p) => !p.bundle);
+export function getProducts({ includeUnpublished = true } = {}) {
+  return getAllProducts({ includeUnpublished }).filter((p) => !p.bundle);
 }
 
-export function getAllProducts() {
+export function getAllProducts({ includeUnpublished = true } = {}) {
   let db;
   try {
     // eslint-disable-next-line global-require
@@ -692,7 +692,8 @@ export function getAllProducts() {
   custom = _overrideState.custom || [];
   const mergedBase = BASE_PRODUCTS.map((p) => applyOverride(p, overrides[p.id]));
   const mergedCustom = custom.map((p) => normalizeCustom(p));
-  return [...mergedBase, ...mergedCustom, ...BUNDLES];
+  const all = [...mergedBase, ...mergedCustom, ...BUNDLES];
+  return includeUnpublished ? all : all.filter((p) => p.published !== false);
 }
 
 const _overrideState = { overrides: {}, custom: [], ready: false };
@@ -745,8 +746,8 @@ function normalizeCustom(p) {
   };
 }
 
-export function findProduct(id) {
-  return getAllProducts().find((p) => p.id === id || p.slug === id);
+export function findProduct(id, { includeUnpublished = true } = {}) {
+  return getAllProducts({ includeUnpublished }).find((p) => p.id === id || p.slug === id);
 }
 
 /* Precio en la moneda del país. AR = ARS; resto = USD redondeado.
