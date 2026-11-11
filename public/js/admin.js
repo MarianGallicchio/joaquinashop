@@ -46,6 +46,8 @@ const state = {
 
   automations: null,
 
+  backups: null,
+
   loading: false,
 
 };
@@ -332,12 +334,14 @@ async function loadOverview({ silent = false } = {}) {
 
   try {
 
-    const [overview, automations] = await Promise.all([
+    const [overview, automations, backups] = await Promise.all([
       adminApi(`/api/admin/overview?days=${state.days}`),
       adminApi("/api/admin/automations").catch(() => null),
+      adminApi("/api/admin/backups").catch(() => null),
     ]);
     state.overview = overview;
     state.automations = automations;
+    state.backups = backups;
 
     updateNav();
 
@@ -1287,6 +1291,8 @@ function viewAutomatizacion() {
         ${rules || `<p class="admin-card__note">No hay reglas cargadas.</p>`}
       </div>
     </section>
+
+    ${renderBackupsCard()}
 
     <section class="admin-card" style="margin-bottom:18px">
       <div class="admin-card__head">
@@ -2330,6 +2336,43 @@ function bindView() {
     }
   });
 
+  document.querySelector("#create-backup")?.addEventListener("click", async () => {
+    const button = document.querySelector("#create-backup");
+    button.disabled = true;
+    button.textContent = "Creando…";
+    try {
+      const data = await adminApi("/api/admin/backups", { method: "POST", body: JSON.stringify({ reason: "manual-admin" }) });
+      state.backups = { status: data.status, backups: data.backups };
+      await loadOverview({ silent: true });
+      render();
+      toast("Backup creado correctamente.");
+    } catch (error) {
+      toast(error.message, { error: true });
+      button.disabled = false;
+      button.textContent = "Crear backup ahora";
+    }
+  });
+
+  document.querySelectorAll("[data-restore-backup]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const name = btn.dataset.restoreBackup;
+      if (!name) return;
+      if (!confirm(`¿Restaurar el backup "${name}"? Esto reemplazará la base de datos actual (se creará una copia de seguridad previa automáticamente).`)) return;
+      btn.disabled = true;
+      btn.textContent = "Restaurando…";
+      try {
+        await adminApi("/api/admin/backups/restore", { method: "POST", body: JSON.stringify({ name }) });
+        await loadOverview({ silent: true });
+        render();
+        toast("Backup restaurado. Recargá si ves datos desactualizados.");
+      } catch (error) {
+        toast(error.message, { error: true });
+        btn.disabled = false;
+        btn.textContent = "Restaurar";
+      }
+    });
+  });
+
 }
 
 
@@ -3171,3 +3214,46 @@ function categoryLabel(category) {
 /* Evita que un estado final quede fuera de los filtros. */
 
 void FINAL_STATUSES;
+
+function renderBackupsCard() {
+  const b = state.backups || { status: {}, backups: [] };
+  const status = b.status || {};
+  const list = (b.backups || []).slice(0, 10);
+  const rows = list.map((item) => `
+    <tr>
+      <td><strong style="font-size:11px">${escapeHtml(item.name || "")}</strong><br><small style="color:var(--muted)">${escapeHtml(item.reason || "")}</small></td>
+      <td>${item.createdAt ? escapeHtml(fullDate(item.createdAt)) : "—"}</td>
+      <td class="num">${item.size ? `${Math.round(item.size / 1024)} KB` : "—"}</td>
+      <td>${item.encrypted ? '<span class="badge badge--paid">Cifrado</span>' : '<span class="badge">Plano</span>'}</td>
+      <td style="text-align:right"><button class="admin-btn admin-btn--ghost" data-restore-backup="${escapeHtml(item.name || "")}" style="font-size:10px;padding:6px 10px">Restaurar</button></td>
+    </tr>
+  `).join("");
+
+  return `
+    <section class="admin-card" style="margin-bottom:18px">
+      <div class="admin-card__head">
+        <div>
+          <h2>Respaldos automáticos</h2>
+          <span>Copias de seguridad de la base de datos</span>
+        </div>
+        <span class="status-chip ${status.enabled ? "is-on" : ""}"><i></i>${status.enabled ? "Activos" : "Inactivos"}</span>
+      </div>
+      <div class="status-list" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:2px 24px;margin-bottom:14px">
+        <div class="status-row"><span>Cifrado en reposo</span><strong>${status.encryptedAtRest ? "Sí (AES-256-GCM)" : "No (configurá BACKUP_ENCRYPTION_KEY)"}</strong></div>
+        <div class="status-row"><span>Backups guardados</span><strong>${nf(status.count || list.length || 0)}</strong></div>
+        <div class="status-row"><span>Último backup</span><strong>${status.latest?.createdAt ? escapeHtml(fullDate(status.latest.createdAt)) : "—"}</strong></div>
+        <div class="status-row"><span>Carpeta</span><strong style="font-size:10px;word-break:break-all">${escapeHtml(status.backupDir || "data/backups")}</strong></div>
+      </div>
+      <div class="admin-actions" style="margin-bottom:14px">
+        <button class="admin-btn admin-btn--primary" id="create-backup">Crear backup ahora</button>
+      </div>
+      ${list.length ? `
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>Archivo</th><th>Fecha</th><th class="num">Tamaño</th><th>Estado</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>` : `<p class="admin-card__note">No hay backups disponibles todavía.</p>`}
+      <p class="admin-card__note">Los backups automáticos se ejecutan al iniciar y cada 6 horas (últimos 30). Restaurar reemplaza la base actual; se crea una copia de seguridad previa automáticamente. Si un backup está cifrado, se necesita la misma <code>BACKUP_ENCRYPTION_KEY</code> para restaurarlo.</p>
+    </section>`;
+}
