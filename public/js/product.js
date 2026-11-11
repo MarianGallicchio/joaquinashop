@@ -9,6 +9,7 @@ import {
   revealAll,
   track,
   toast,
+  openLightbox,
 } from "./common.js";
 
 await init({ page: "product" });
@@ -82,20 +83,35 @@ $("#pdp-specs").innerHTML = Object.entries(product.specs)
   .map(([key, value]) => `<li><strong>${escapeHtml(key)}:</strong> ${escapeHtml(value)}</li>`)
   .join("");
 
-/* Galería */
+/* Galería + lightbox */
 const thumbs = $("#pdp-thumbs");
-if (product.gallery?.length > 1) {
-  thumbs.innerHTML = product.gallery
+const galleryImages = (product.gallery && product.gallery.length ? product.gallery : [product.image]).filter(Boolean);
+let currentImageIndex = 0;
+const mainWrap = document.querySelector(".pdp__main");
+const mainImg = $("#pdp-image");
+if (mainWrap) {
+  mainWrap.classList.add("is-hover-zoom");
+  mainWrap.setAttribute("tabindex", "0");
+  mainWrap.setAttribute("role", "button");
+  mainWrap.setAttribute("aria-label", "Ampliar imagen del producto");
+  const openCurrent = () => openLightbox(galleryImages, currentImageIndex);
+  mainWrap.addEventListener("click", openCurrent);
+  mainWrap.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openCurrent(); } });
+}
+
+if (galleryImages.length > 1) {
+  thumbs.innerHTML = galleryImages
     .map(
       (src, index) => `
-      <button class="pdp__thumb ${index === 0 ? "is-active" : ""}" data-image="${src}" aria-label="Ver imagen ${index + 1}">
+      <button class="pdp__thumb ${index === 0 ? "is-active" : ""}" data-image="${src}" data-index="${index}" aria-label="Ver imagen ${index + 1}">
         <img src="${src}" alt="" loading="lazy">
       </button>`,
     )
     .join("");
   thumbs.querySelectorAll("[data-image]").forEach((button) => {
     button.addEventListener("click", () => {
-      $("#pdp-image").src = button.dataset.image;
+      currentImageIndex = Number(button.dataset.index || 0);
+      mainImg.src = button.dataset.image;
       thumbs.querySelectorAll(".pdp__thumb").forEach((item) => item.classList.remove("is-active"));
       button.classList.add("is-active");
     });

@@ -387,12 +387,16 @@ export function productCard(product, { index = 0 } = {}) {
   const mediaAttrs = `
       ${hoverSrc ? `data-hover="${escapeHtml(hoverSrc)}"` : ""}
       ${hoverSrc ? `data-hover-ready="1"` : ""}`;
+  const delay = Math.min(index * 40, 240);
   return `
-    <article class="card reveal" data-category="${product.category}">
+    <article class="card reveal" data-category="${product.category}" data-product-id="${escapeHtml(product.id)}" style="--reveal-delay:${delay}ms">
       <a class="card__media${mediaAttrs}" href="${href}" aria-label="Ver ${escapeHtml(product.name)}">
         <img src="${product.image}" alt="${escapeHtml(product.name)}" loading="lazy" width="1000" height="1000">
         <span class="${badgeClass}">${escapeHtml(product.badge || "Nuevo")}</span>
         <span class="${stockClass}">${stockLabel}</span>
+        <button class="qv-trigger" type="button" data-quickview="${escapeHtml(product.id)}" aria-label="Vista rápida de ${escapeHtml(product.name)}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/></svg>Vista rápida
+        </button>
         <span class="card__quick" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 5v14M5 12h14"/></svg>
         </span>
@@ -526,6 +530,139 @@ export async function revealAll() {
   }
 }
 
+let quickViewDialog = null;
+
+function getAllProducts() {
+  const c = state.catalog;
+  if (!c) return [];
+  return [...(c.products || []), c.bundle].filter(Boolean);
+}
+
+function ensureQuickView() {
+  if (quickViewDialog) return quickViewDialog;
+  quickViewDialog = document.createElement('dialog');
+  quickViewDialog.className = 'qv-dialog';
+  quickViewDialog.id = 'quickview-dialog';
+  quickViewDialog.innerHTML = `
+    <button type="button" class="qv-close" data-qv-close aria-label="Cerrar">×</button>
+    <div class="qv-body">
+      <div class="qv-media"><img id="qv-image" src="" alt="" loading="lazy"></div>
+      <div class="qv-info">
+        <p class="eyebrow" id="qv-cat"></p>
+        <h2 id="qv-title"></h2>
+        <p class="qv-meta" id="qv-sub"></p>
+        <div id="qv-rating" class="card__rating"></div>
+        <div class="qv-price" id="qv-price"></div>
+        <p class="qv-meta" id="qv-stock"></p>
+        <p id="qv-short" style="font-size:14px;color:var(--muted);line-height:1.5"></p>
+        <div class="qv-actions">
+          <button class="btn btn--primary" type="button" id="qv-add">Agregar al carrito</button>
+          <a class="btn btn--ghost" id="qv-link" href="#">Ver detalle</a>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(quickViewDialog);
+  quickViewDialog.addEventListener('click', (e) => {
+    if (e.target === quickViewDialog || e.target.closest('[data-qv-close]')) quickViewDialog.close();
+  });
+  quickViewDialog.addEventListener('close', () => {
+    document.body.classList.remove('is-locked');
+  });
+  return quickViewDialog;
+}
+
+export function initQuickView() {
+  ensureQuickView();
+}
+
+export function openQuickView(id) {
+  const product = getAllProducts().find((p) => p.id === id || p.slug === id);
+  if (!product) return;
+  const dialog = ensureQuickView();
+  const stock = Math.max(0, Number(product.stock) || 0);
+  dialog.querySelector('#qv-image').src = product.image || '';
+  dialog.querySelector('#qv-image').alt = product.name || '';
+  dialog.querySelector('#qv-cat').textContent = product.eyebrow || categoryLabel(product.category);
+  dialog.querySelector('#qv-title').textContent = product.name || '';
+  dialog.querySelector('#qv-sub').textContent = product.subtitle || '';
+  dialog.querySelector('#qv-short').textContent = product.short || '';
+  dialog.querySelector('#qv-price').textContent = money(product.priceArs);
+  dialog.querySelector('#qv-rating').innerHTML = product.reviews > 0 ? `${stars(product.rating)} <span>${product.rating} · ${Number(product.reviews).toLocaleString('es-AR')} opiniones</span>` : '';
+  dialog.querySelector('#qv-stock').textContent = stock <= 0 ? 'Agotado' : stock <= 3 ? `Últimas ${stock} unidades` : `${stock} disponibles`;
+  const addBtn = dialog.querySelector('#qv-add');
+  addBtn.disabled = stock <= 0;
+  addBtn.textContent = stock <= 0 ? 'Agotado' : 'Agregar al carrito';
+  addBtn.onclick = () => { addToCart(product.id, 1, null); dialog.close(); };
+  const href = `/producto.html?id=${encodeURIComponent(product.slug || product.id)}`;
+  dialog.querySelector('#qv-link').href = href;
+  track('view_item', { id: product.id, source: 'quickview' });
+  document.body.classList.add('is-locked');
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
+}
+
+let lightboxDialog = null;
+let lightboxImages = [];
+let lightboxIndex = 0;
+
+function ensureLightbox() {
+  if (lightboxDialog) return lightboxDialog;
+  lightboxDialog = document.createElement('dialog');
+  lightboxDialog.className = 'lightbox-dialog';
+  lightboxDialog.id = 'product-lightbox';
+  lightboxDialog.innerHTML = `
+    <button type="button" class="lightbox-close" data-lb-close aria-label="Cerrar">×</button>
+    <div class="lightbox-stage">
+      <img id="lb-image" src="" alt="">
+      <div class="lightbox-nav">
+        <button type="button" data-lb-prev aria-label="Anterior">‹</button>
+        <button type="button" data-lb-next aria-label="Siguiente">›</button>
+      </div>
+      <div class="lightbox-caption" id="lb-caption"></div>
+    </div>`;
+  document.body.appendChild(lightboxDialog);
+  const img = lightboxDialog.querySelector('#lb-image');
+  lightboxDialog.addEventListener('click', (e) => {
+    if (e.target === lightboxDialog || e.target.closest('[data-lb-close]')) lightboxDialog.close();
+    if (e.target.closest('[data-lb-prev]')) showLightbox(lightboxIndex - 1);
+    if (e.target.closest('[data-lb-next]')) showLightbox(lightboxIndex + 1);
+  });
+  img.addEventListener('click', (e) => { e.stopPropagation(); img.classList.toggle('is-zoomed'); });
+  lightboxDialog.addEventListener('keydown', (e) => {
+    if (!lightboxDialog.open) return;
+    if (e.key === 'ArrowLeft') { e.preventDefault(); showLightbox(lightboxIndex - 1); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); showLightbox(lightboxIndex + 1); }
+  });
+  lightboxDialog.addEventListener('close', () => {
+    document.body.classList.remove('is-locked');
+    img.classList.remove('is-zoomed');
+  });
+  return lightboxDialog;
+}
+
+function showLightbox(index) {
+  if (!lightboxImages.length) return;
+  lightboxIndex = (index + lightboxImages.length) % lightboxImages.length;
+  const img = lightboxDialog.querySelector('#lb-image');
+  img.classList.remove('is-zoomed');
+  img.src = lightboxImages[lightboxIndex];
+  img.alt = 'Imagen de producto ampliada';
+  const cap = lightboxDialog.querySelector('#lb-caption');
+  cap.textContent = lightboxImages.length > 1 ? `${lightboxIndex + 1} / ${lightboxImages.length}` : '';
+  lightboxDialog.querySelector('[data-lb-prev]').style.visibility = lightboxImages.length > 1 ? 'visible' : 'hidden';
+  lightboxDialog.querySelector('[data-lb-next]').style.visibility = lightboxImages.length > 1 ? 'visible' : 'hidden';
+}
+
+export function openLightbox(images, startIndex = 0) {
+  lightboxImages = Array.isArray(images) ? images.filter(Boolean) : [images].filter(Boolean);
+  if (!lightboxImages.length) return;
+  ensureLightbox();
+  showLightbox(startIndex);
+  document.body.classList.add('is-locked');
+  if (typeof lightboxDialog.showModal === 'function') lightboxDialog.showModal();
+  else lightboxDialog.setAttribute('open', '');
+}
+
 export async function init({ page = "home" } = {}) {
   initHeader();
   initNewsletter();
@@ -562,12 +699,21 @@ export async function init({ page = "home" } = {}) {
   };
 
   document.addEventListener("click", (event) => {
+    const qv = event.target.closest("[data-quickview]");
+    if (qv) {
+      event.preventDefault();
+      event.stopPropagation();
+      openQuickView(qv.dataset.quickview);
+      return;
+    }
     const add = event.target.closest("[data-add]");
     if (add) {
       event.preventDefault();
       addToCart(add.dataset.add, 1, null);
     }
   });
+
+  initQuickView();
 }
 
 window.Aurea = {
@@ -590,4 +736,6 @@ window.Aurea = {
   getChannel,
   revealAll,
   init,
+  openQuickView,
+  openLightbox,
 };
