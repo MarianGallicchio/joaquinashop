@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" role="img" aria-label="Kit Reset 360 de AUREA">
+  <defs>
+    <radialGradient id="bg" cx=".5" cy=".4" r=".85">
+      <stop offset="0" stop-color="#24322a"/><stop offset=".65" stop-color="#111815"/><stop offset="1" stop-color="#0a100d"/>
+    </radialGradient>
+    <radialGradient id="glow" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#c9f25a" stop-opacity=".5"/><stop offset="1" stop-color="#c9f25a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5b6a61"/><stop offset="1" stop-color="#202a25"/>
+    </linearGradient>
+    <linearGradient id="clay" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d49b72"/><stop offset="1" stop-color="#9c5f3d"/>
+    </linearGradient>
+    <linearGradient id="sage" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#c7d6c6"/><stop offset="1" stop-color="#7e9a82"/>
+    </linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="60"/></filter>
+    <filter id="soft"><feGaussianBlur stdDeviation="22"/></filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="3"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="linear" slope=".07"/></feComponentTransfer>
+      <feComposite in2="SourceGraphic" operator="over"/>
+    </filter>
+  </defs>
+  <rect width="1000" height="1000" fill="url(#bg)"/>
+  <circle cx="500" cy="460" r="360" fill="url(#glow)"/>
+  <ellipse cx="500" cy="790" rx="340" ry="50" fill="#000" opacity=".35" filter="url(#soft)"/>
+
+  <!-- Pulse -->
+  <g transform="translate(240 440) rotate(-18) scale(.62)">
+    <rect x="-170" y="-66" width="340" height="132" rx="66" fill="url(#metal)"/>
+    <rect x="120" y="-62" width="86" height="124" rx="40" fill="#1a2420"/>
+    <circle cx="-200" cy="0" r="82" fill="url(#metal)"/>
+    <circle cx="-200" cy="0" r="54" fill="#0f1613"/>
+    <circle cx="-200" cy="0" r="36" fill="#c9f25a"/>
+    <g transform="rotate(19 40 10)">
+      <rect x="-10" y="40" width="104" height="270" rx="52" fill="#1c2621"/>
+      <rect x="-10" y="250" width="104" height="24" rx="12" fill="#c9f25a"/>
+    </g>
+    <rect x="-60" y="-20" width="120" height="22" rx="11" fill="#fcfbf7" opacity=".85"/>
+  </g>
+
+  <!-- Roller -->
+  <g transform="translate(520 620) rotate(-14) scale(.55)">
+    <rect x="-280" y="-90" width="560" height="180" rx="90" fill="url(#clay)"/>
+    <ellipse cx="280" cy="0" rx="40" ry="90" fill="#8d5233"/>
+    <ellipse cx="-280" cy="0" rx="40" ry="90" fill="#e0ad84"/>
+    <g fill="#0b100e" opacity=".18">
+      <circle cx="-170" cy="-20" r="10"/><circle cx="-90" cy="34" r="9"/><circle cx="0" cy="-24" r="10"/><circle cx="90" cy="30" r="9"/><circle cx="180" cy="-16" r="8"/>
+    </g>
+  </g>
+
+  <!-- Bottle -->
+  <g transform="translate(740 450) scale(.55)">
+    <rect x="-55" y="-240" width="110" height="70" rx="24" fill="#1a2420"/>
+    <rect x="-90" y="-180" width="180" height="400" rx="86" fill="url(#sage)"/>
+    <rect x="-28" y="-30" width="56" height="90" rx="6" fill="#fcfbf7" opacity=".9"/>
+    <text x="0" y="22" text-anchor="middle" font-family="Georgia, serif" font-size="16" letter-spacing="2" fill="#0b100e">A</text>
+  </g>
+
+  <text x="500" y="880" text-anchor="middle" font-family="Georgia, serif" font-size="34" letter-spacing="14" fill="#fcfbf7">AUREA</text>
+  <text x="500" y="918" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="11" letter-spacing="7" fill="#a9bfae">KIT RESET 360</text>
+  <rect width="1000" height="1000" filter="url(#grain)" opacity=".6"/>
+</svg>

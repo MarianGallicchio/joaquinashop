@@ -1,0 +1,18 @@
+node_modules/
+.env
+data/db.json
+data/*.tmp
+public/uploads/
+npm-debug.log*
+.DS_Store
+
+# backups and local data
+data/backups/
+*.log
+report_current_state.txt
+admin-login-fail.png
+tmp-catalog/
+parse_pdf.cjs
+parse_pdf.js
+fix_admin.cjs
+"0(set)empty"

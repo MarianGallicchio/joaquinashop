@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" role="img" aria-label="Antifaz de descanso AUREA Sleep Mask">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ece7db"/><stop offset=".55" stop-color="#e2dbcc"/><stop offset="1" stop-color="#d3c9b6"/>
+    </linearGradient>
+    <linearGradient id="mask" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#37423b"/><stop offset=".55" stop-color="#1b2420"/><stop offset="1" stop-color="#0e1512"/>
+    </linearGradient>
+    <linearGradient id="strap" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#c9bfa9"/><stop offset=".5" stop-color="#e8e0cf"/><stop offset="1" stop-color="#b8ac95"/>
+    </linearGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="24"/></filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="3"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="linear" slope=".05"/></feComponentTransfer>
+      <feComposite in2="SourceGraphic" operator="over"/>
+    </filter>
+  </defs>
+  <rect width="1000" height="1000" fill="url(#bg)"/>
+  <circle cx="200" cy="780" r="300" fill="#c9f25a" opacity=".24"/>
+  <ellipse cx="500" cy="700" rx="330" ry="45" fill="#3c3327" opacity=".16" filter="url(#soft)"/>
+  <g transform="rotate(-7 500 500)">
+    <path d="M100 490c0-30 30-50 70-50h40c18-52 62-88 116-88h348c54 0 98 36 116 88h40c40 0 70 20 70 50s-30 50-70 50h-30v40c0 74-60 130-136 130H266c-76 0-136-56-136-130v-40h-20c-40 0-70-20-70-50z" fill="url(#strap)"/>
+    <path d="M216 470h568c18 0 32 12 32 30v66c0 68-56 120-126 120H310c-70 0-126-52-126-120v-66c0-18 14-30 32-30z" fill="url(#mask)"/>
+    <path d="M280 522c40-18 120-26 220-26s180 8 220 26v40c0 20-14 34-34 34H314c-20 0-34-14-34-34z" fill="#0b100e" opacity=".55"/>
+    <path d="M330 486c60-14 280-14 340 0" fill="none" stroke="#fcfbf7" stroke-opacity=".14" stroke-width="6"/>
+    <rect x="458" y="594" width="84" height="22" rx="11" fill="#fcfbf7" opacity=".9"/>
+    <text x="500" y="609" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="8" letter-spacing="3" fill="#0b100e">AUREA</text>
+    <circle cx="756" cy="646" r="12" fill="none" stroke="#c9f25a" stroke-opacity=".5"/>
+    <circle cx="756" cy="646" r="4" fill="#c9f25a"/>
+  </g>
+  <rect width="1000" height="1000" filter="url(#grain)" opacity=".6"/>
+</svg>

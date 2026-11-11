@@ -1,0 +1,258 @@
+/* Hotel Brighton · shop layers
+   Scope: only applies on shop-facing pages. Standalone demo page
+   keeps its own layout and only shares a few token-safe bits if it
+   opts in via .motion-scope.
+   1) Parallax hero  2) Scroll reveal  3) Stacked cards  4) Product hover  5) Cart micro-interactions */
+.demo-page .btn--lime,
+.demo-page .btn--primary { transition: transform 0.2s cubic-bezier(0.22,1,0.36,1), background 0.2s ease; }
+.demo-page .btn--lime:active,
+.demo-page .btn--primary:active { transform: scale(0.98); }
+
+:root {
+  --reveal-delay: 0ms;
+}
+
+/* ── Touch polish on interactive controls (no layout shift) ── */
+[data-haptic],
+button,
+input[type="submit"],
+input[type="button"],
+select,
+.aurea-action { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+
+/* Haptic / pressure-pressure pulse — visual-only side channel.
+   It is layered on top of the existing micro-interactions and never
+   moves layout; it is a short scale + luminance cue on press. */
+.haptic {
+  transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1),
+              background 0.12s ease, color 0.12s ease, opacity 0.12s ease;
+}
+.haptic:active,
+.haptic.is-pressed {
+  transform: scale(0.96) translateY(1px);
+}
+.haptic--ink:active,
+.haptic--ink.is-pressed {
+  background: var(--ink-2);
+  color: var(--white);
+}
+.haptic--lime:active,
+.haptic--lime.is-pressed {
+  background: var(--lime-2);
+}
+.haptic:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 4px; }
+
+/* ── Scroll reveal, reduced-motion safe ─────────────────────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: calc(var(--reveal-delay, 0ms) + 40ms);
+}
+.reveal.is-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal.transitioning {
+  transition-duration: 0.42s;
+}
+
+/* Foo-fighter guard for slow network + redraws */
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+}
+
+/* ── Parallax hero ─────────────────────────────────────────── */
+.hero { position: relative; overflow: hidden; }
+.hero__visual {
+  position: relative;
+  z-index: 1;
+}
+.hero__parallax {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  will-change: transform;
+  mask-image: linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.06) 75%, rgba(0,0,0,0.14) 100%);
+  -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.06) 75%, rgba(0,0,0,0.14) 100%);
+  transform: translateY(0);
+  transition: transform 0.08s linear;
+}
+.hero__parallax img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ── Stacked / offset cards ────────────────────────────────── */
+.value, .step, .stat, .card, .bundle, .newsletter, .quote-card,
+.budget, .stack-grid > div, .fundle-plan div, .phase {
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.value.is-stacked, .step.is-stacked, .stat.is-stacked,
+.card.is-stacked, .bundle.is-stacked, .newsletter.is-stacked,
+.quote-card.is-stacked, .budget.is-stacked,
+.stack-grid > div.is-stacked, .fundle-plan div.is-stacked,
+.phase.is-stacked {
+  transform: translateY(-6px) scale(1.012);
+  box-shadow: 0 24px 52px -30px rgba(11, 16, 14, 0.42);
+}
+.card.is-stacked .add-btn { transform: translateY(-2px); }
+
+/* ── Product hover (lightweight, no extra asset ticks) ─────── */
+.card__media {
+  contain: layout style paint;
+}
+.card__media img {
+  will-change: transform;
+  transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+              filter 0.4s ease;
+}
+.card:hover .card__media img {
+  transform: scale(1.055);
+  filter: saturate(1.04) contrast(1.02);
+}
+.card__media::after {
+  transition: opacity 0.3s ease;
+}
+.card:hover .card__media::after {
+  opacity: 0.25;
+}
+.card__quick {
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+              background 0.2s ease, color 0.2s ease;
+}
+.card__quick svg { transition: transform 0.3s ease; }
+.card:hover .card__quick svg { transform: translate(-1px, -1px); }
+
+/* Feather shadow under the card when it lifts */
+.card:not(:hover) .card__media img {
+  filter: saturate(1.03) contrast(1.015);
+}
+
+/* ── Hover swap, when a real secondary image exists ────────── */
+.card__media[data-hover] .card__media__img,
+.card__media a[data-hover] .card__media__img {
+  display: block;
+}
+.card__media__img {
+  position: absolute;
+  inset: 8px;
+  width: calc(100% - 16px);
+  height: calc(100% - 16px);
+  border-radius: 17px;
+  object-fit: cover;
+  background: transparent;
+  will-change: opacity;
+  transition: opacity 0.34s ease, transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.card__media__img.is-primary { z-index: 1; opacity: 1; }
+.card__media__img.is-hover { z-index: 2; opacity: 0; transform: scale(0.98); }
+.card:hover .card__media__img.is-primary { opacity: 0; }
+.card:hover .card__media__img.is-hover { opacity: 1; transform: scale(1); }
+
+/* Keep the existing card image fallback working when no swap is wired */
+.card__media img:not(.card__media__img) {
+  position: relative;
+  z-index: 1;
+  transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.card:hover .card__media img:not(.card__media__img) { transform: scale(1.055); }
+
+/* ── Button micro-interactions ─────────────────────────────── */
+.add-btn {
+  position: relative;
+  overflow: hidden;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.add-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--lime);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.add-btn:hover::before { opacity: 0.14; }
+.add-btn:active { transform: scale(0.97); }
+.add-btn svg { transition: transform 0.2s ease; }
+.add-btn:hover svg { transform: scale(1.08); }
+
+/* Cart: add button feedback */
+.add-btn.is-added {
+  background: var(--lime);
+  color: var(--ink);
+}
+.add-btn.is-added svg { transform: rotate(-6deg) scale(1.06); }
+
+/* Cart count pop */
+.cart-count {
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+              background 0.2s ease;
+}
+.cart-count.is-bump {
+  transform: scale(1.28);
+  background: var(--lime-2);
+}
+
+/* ── Drawer micro-motion: open/close ease stays, but items stagger ── */
+.drawer__body .cart-line {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.3s ease;
+}
+.drawer.is-open .drawer__body .cart-line {
+  opacity: 1;
+  transform: translateY(0);
+}
+.drawer.is-open .drawer__body .cart-line:nth-child(1) { transition-delay: 0.02s; }
+.drawer.is-open .drawer__body .cart-line:nth-child(2) { transition-delay: 0.05s; }
+.drawer.is-open .drawer__body .cart-line:nth-child(3) { transition-delay: 0.08s; }
+.drawer.is-open .drawer__body .cart-line:nth-child(4) { transition-delay: 0.11s; }
+.drawer.is-open .drawer__body .cart-line:nth-child(5) { transition-delay: 0.14s; }
+.drawer.is-open .drawer__body .cart-line:nth-child(6) { transition-delay: 0.17s; }
+.drawer.is-open .drawer__body .cart-line:nth-child(7) { transition-delay: 0.20s; }
+.drawer.is-open .drawer__body .cart-line:nth-child(8) { transition-delay: 0.23s; }
+.drawer.is-open .drawer__body .cart-line:nth-child(9) { transition-delay: 0.26s; }
+.drawer.is-open .drawer__body .cart-line:nth-child(10) { transition-delay: 0.29s; }
+
+/* Button hover light-follow (subtle appearance) */
+.btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at 50% 0%, rgba(255,255,255,0.4), transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+.btn:hover::after { opacity: 1; }
+.btn--primary::after,
+.btn--lime::after,
+.btn--ghost::after,
+.btn--light::after {
+  background: radial-gradient(circle at 50% 0%, rgba(255,255,255,0.5), transparent 60%);
+}
+
+/* ── Responsive: keep effects but don't fight 3-col grid on tablets ── */
+@media (prefers-reduced-motion: reduce) {
+  .haptic {
+    transition: none;
+  }
+  .haptic:active,
+  .haptic.is-pressed {
+    transform: none;
+  }
+}
+@media (max-width: 760px) {
+  .card:hover .card__media img { transform: scale(1.04); }
+  .react__grid > .card.is-stacked,
+  .product-grid > .card.is-stacked { transform: translateY(-4px) scale(1.008); }
+}
+
+/* ── Utilities for JS to mark hover-ready cards ────────────── */
+.card.is-hover-ready { position: relative; }
+.card.is-hover-ready .card__media { cursor: zoom-in; }

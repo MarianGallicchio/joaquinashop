@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="La Joaquina Hogar & Deco">
+  <rect width="64" height="64" rx="16" fill="#1f4d3a"/>
+  <g transform="translate(8 8) scale(0.75)" fill="#f3f0e7">
+    <path d="M32 23C22.5 23 16.5 17 15 7c9.8 0 16 6 17 16Z"/>
+    <path d="M32 34C22.5 34 16.5 28 15 18c9.8 0 16 6 17 16Z"/>
+    <path d="M32 23c9.5 0 15.5-6 17-16-9.8 0-16 6-17 16Z"/>
+    <path d="M32 34c9.5 0 15.5-6 17-16-9.8 0-16 6-17 16Z"/>
+    <path d="M32 13c-5-2-7-6-6-11 5 1 7 5 6 11Z"/>
+    <path d="M32 13c5-2 7-6 6-11-5 1-7 5-6 11Z"/>
+  </g>
+  <path d="M32 56V12" fill="none" stroke="#f3f0e7" stroke-width="1.7" stroke-linecap="round"/>
+  <path d="M32 51c-6-4-9.5-9-10.5-15M32 51c6-4 9.5-9 10.5-15" fill="none" stroke="#f3f0e7" stroke-width="1.7" stroke-linecap="round"/>
+  <circle cx="49" cy="15" r="3.2" fill="#c9a86a"/>
+</svg>

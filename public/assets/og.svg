@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="La Joaquina · Hogar & Deco">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f3f0e7"/><stop offset="1" stop-color="#e7e0cf"/>
+    </linearGradient>
+    <radialGradient id="g" cx=".85" cy=".2" r=".7">
+      <stop offset="0" stop-color="#c9a86a" stop-opacity=".35"/><stop offset="1" stop-color="#c9a86a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="980" cy="120" r="340" fill="url(#g)"/>
+  <g transform="translate(80 108) scale(0.58)" fill="#1f4d3a">
+    <path d="M32 23C22.5 23 16.5 17 15 7c9.8 0 16 6 17 16Z"/>
+    <path d="M32 34C22.5 34 16.5 28 15 18c9.8 0 16 6 17 16Z"/>
+    <path d="M32 23c9.5 0 15.5-6 17-16-9.8 0-16 6-17 16Z"/>
+    <path d="M32 34c9.5 0 15.5-6 17-16-9.8 0-16 6-17 16Z"/>
+    <path d="M32 13c-5-2-7-6-6-11 5 1 7 5 6 11Z"/>
+    <path d="M32 13c5-2 7-6 6-11-5 1-7 5-6 11Z"/>
+    <path d="M32 56V12" fill="none" stroke="#1f4d3a" stroke-width="1.7" stroke-linecap="round"/>
+  </g>
+  <text x="128" y="150" font-family="Georgia, serif" font-size="30" letter-spacing="10" fill="#1f4d3a">LA JOAQUINA</text>
+  <text x="80" y="300" font-family="Georgia, serif" font-size="92" fill="#1f4d3a">Tu casa,</text>
+  <text x="80" y="395" font-family="Georgia, serif" font-size="92" font-style="italic" fill="#8a7447">más linda.</text>
+  <text x="82" y="470" font-family="Arial, Helvetica, sans-serif" font-size="20" letter-spacing="3" fill="#5e6b60">HOGAR &amp; DECO · ENVÍOS A TODO EL PAÍS</text>
+  <g transform="translate(1010 380) scale(2.8)" fill="#1f4d3a" opacity="0.14">
+    <path d="M32 23C22.5 23 16.5 17 15 7c9.8 0 16 6 17 16Z"/>
+    <path d="M32 34C22.5 34 16.5 28 15 18c9.8 0 16 6 17 16Z"/>
+    <path d="M32 23c9.5 0 15.5-6 17-16-9.8 0-16 6-17 16Z"/>
+    <path d="M32 34c9.5 0 15.5-6 17-16-9.8 0-16 6-17 16Z"/>
+    <path d="M32 13c-5-2-7-6-6-11 5 1 7 5 6 11Z"/>
+    <path d="M32 13c5-2 7-6 6-11-5 1-7 5-6 11Z"/>
+    <path d="M32 56V12" fill="none" stroke="#1f4d3a" stroke-width="1.7" stroke-linecap="round"/>
+  </g>
+  <rect x="80" y="515" width="250" height="48" rx="24" fill="#1f4d3a"/>
+  <text x="205" y="545" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="bold" fill="#f3f0e7">lajoaquina.shop</text>
+</svg>

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" role="img" aria-label="Patrones de respiración AUREA Breath">
+  <defs>
+    <radialGradient id="dark" cx=".5" cy=".45" r=".9">
+      <stop offset="0" stop-color="#222f36"/><stop offset="1" stop-color="#080d10"/>
+    </radialGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="35"/></filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="3"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="linear" slope=".07"/></feComponentTransfer>
+      <feComposite in2="SourceGraphic" operator="over"/>
+    </filter>
+  </defs>
+  <rect width="1000" height="1000" fill="url(#dark)"/>
+  <circle cx="500" cy="480" r="240" fill="#c9f25a" opacity=".2" filter="url(#blur)"/>
+  <g fill="none" stroke="#c9f25a">
+    <circle cx="500" cy="480" r="300" stroke-opacity=".1" stroke-width="1.5"/>
+    <circle cx="500" cy="480" r="240" stroke-opacity=".18" stroke-width="1.5"/>
+    <circle cx="500" cy="480" r="180" stroke-opacity=".3" stroke-width="1.5"/>
+    <circle cx="500" cy="480" r="120" stroke-opacity=".55" stroke-width="1.5"/>
+    <circle cx="500" cy="480" r="62" stroke-opacity=".9" stroke-width="2"/>
+  </g>
+  <circle cx="500" cy="480" r="22" fill="#c9f25a"/>
+  <text x="500" y="860" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="12" letter-spacing="9" fill="#a9bfae">INHALÁ · 4 · EXHALÁ · 6</text>
+  <rect width="1000" height="1000" filter="url(#grain)" opacity=".6"/>
+</svg>

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tu pedido · La Joaquina</title>
+  <meta name="description" content="Seguimiento de tu pedido La Joaquina.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#f3f0e7">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css?v=20261111">
+  <link rel="stylesheet" href="/css/pages.css?v=20261111">
+  <link rel="stylesheet" href="/css/motion.css?v=20261111">
+</head>
+<body>
+  <a class="skip-link" href="#main">Saltar al contenido</a>
+
+  <header class="checkout-header">
+    <div class="container checkout-header__inner">
+      <a class="brand" href="/" aria-label="La Joaquina, volver a la tienda">La Joaquina<span class="brand__dot" aria-hidden="true"></span></a>
+      <div class="checkout-steps" aria-label="Progreso del checkout">
+        <span>01 Carrito</span><i></i><span>02 Datos y pago</span><i></i><b>03 Confirmación</b>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <a class="haptic" data-haptic="link" href="/" style="font-size:11.5px;color:var(--muted);">Volver a la tienda</a>
+        <button class="icon-btn haptic" data-haptic="cart" data-open-cart aria-label="Ver carrito">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 8h12l-1 11H7L6 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>
+          <span class="cart-count" hidden>0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="order-page">
+    <div class="container">
+      <div id="order-root">
+        <div style="padding:80px 0;text-align:center;color:var(--muted)">Cargando tu pedido…</div>
+      </div>
+    </div>
+  </main>
+
+  <footer style="border-top:1px solid var(--line);padding:24px 0;">
+    <div class="container" style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;font-size:11px;color:var(--muted);">
+      <span>© <span data-year>2026</span> La Joaquina · Hogar & Deco</span>
+      <span style="display:flex;gap:16px;"><a href="/legal#terminos">Términos</a><a href="/legal#privacidad">Privacidad</a><a href="/legal#devoluciones">Devoluciones</a></span>
+    </div>
+  </footer>
+
+  <script type="module" src="/js/motion.js?v=20261111"></script>
+  <script type="module" src="/js/order.js?v=20261111"></script>
+</body>
+</html>
