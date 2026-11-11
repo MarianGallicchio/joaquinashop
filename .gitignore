@@ -16,3 +16,5 @@ parse_pdf.cjs
 parse_pdf.js
 fix_admin.cjs
 "0(set)empty"
+cloudflared.exe
+cloudflared.log
