@@ -663,6 +663,350 @@ export function openLightbox(images, startIndex = 0) {
   else lightboxDialog.setAttribute('open', '');
 }
 
+/* ── Cuenta de comprador ─────────────────────────────────────── */
+const CUSTOMER_TOKEN_KEY = "aurea_customer_token";
+let currentCustomer = null;
+let accountModal = null;
+
+export function getCustomerToken() {
+  try { return localStorage.getItem(CUSTOMER_TOKEN_KEY) || ""; } catch { return ""; }
+}
+function setCustomerToken(token) {
+  try {
+    if (token) localStorage.setItem(CUSTOMER_TOKEN_KEY, token);
+    else localStorage.removeItem(CUSTOMER_TOKEN_KEY);
+  } catch {}
+}
+export function getCurrentCustomer() { return currentCustomer; }
+
+async function accountApi(path, options = {}) {
+  const token = getCustomerToken();
+  const headers = { ...(options.headers || {}) };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const response = await fetch(`/api${path}`, { ...options, headers });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "No pudimos completar la acción.");
+  return data;
+}
+
+export async function refreshCustomer() {
+  if (!getCustomerToken()) { currentCustomer = null; updateAccountButton(); return null; }
+  try {
+    const data = await accountApi("/account/me");
+    currentCustomer = data.customer || null;
+  } catch {
+    setCustomerToken("");
+    currentCustomer = null;
+  }
+  updateAccountButton();
+  return currentCustomer;
+}
+
+function updateAccountButton() {
+  const btn = document.getElementById("account-btn");
+  if (!btn) return;
+  const label = btn.querySelector(".account-btn-label");
+  if (currentCustomer) {
+    btn.setAttribute("aria-label", `Mi cuenta: ${currentCustomer.name || "Cliente"}`);
+    btn.title = "Mi cuenta";
+    if (label) label.textContent = (currentCustomer.name || "Mi cuenta").split(" ")[0];
+    btn.classList.add("is-logged");
+  } else {
+    btn.setAttribute("aria-label", "Ingresar a mi cuenta");
+    btn.title = "Mi cuenta";
+    if (label) label.textContent = "Cuenta";
+    btn.classList.remove("is-logged");
+  }
+}
+
+function ensureAccountModal() {
+  if (accountModal) return accountModal;
+  accountModal = document.createElement("div");
+  accountModal.className = "account-modal";
+  accountModal.id = "account-modal";
+  accountModal.innerHTML = `
+    <div class="account-modal__overlay" data-account-close></div>
+    <div class="account-modal__panel" role="dialog" aria-modal="true" aria-label="Mi cuenta">
+      <div class="account-modal__head">
+        <div>
+          <h2 id="account-title">Mi cuenta</h2>
+          <p id="account-subtitle">Guardá tus datos para comprar más rápido.</p>
+        </div>
+        <button class="icon-btn" type="button" data-account-close aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+      <div id="account-body"></div>
+    </div>`;
+  document.body.appendChild(accountModal);
+  accountModal.addEventListener("click", (e) => {
+    if (e.target.closest("[data-account-close]")) closeAccountModal();
+  });
+  return accountModal;
+}
+
+export function openAccountModal(view = "auto") {
+  ensureAccountModal();
+  renderAccountModal(view);
+  accountModal.classList.add("is-open");
+  document.body.classList.add("is-locked");
+}
+export function closeAccountModal() {
+  if (!accountModal) return;
+  accountModal.classList.remove("is-open");
+  document.body.classList.remove("is-locked");
+}
+
+function renderAccountModal(view = "auto") {
+  const body = document.getElementById("account-body");
+  if (!body) return;
+  const mode = view === "auto" ? (currentCustomer ? "profile" : "login") : view;
+  if (!currentCustomer && (mode === "profile" || mode === "orders")) return renderAccountModal("login");
+
+  if (!currentCustomer) {
+    body.innerHTML = `
+      <div class="account-tabs">
+        <button class="account-tab ${mode === "login" ? "is-active" : ""}" data-account-view="login" type="button">Ingresar</button>
+        <button class="account-tab ${mode === "register" ? "is-active" : ""}" data-account-view="register" type="button">Crear cuenta</button>
+      </div>
+      ${mode === "register" ? renderRegisterForm() : renderLoginForm()}
+      <p class="account-note" style="margin-top:10px; position:relative; z-index:1;">Tu cuenta guarda tus datos de envío para futuras compras. Próximamente se sincronizará con una base de datos segura.</p>`;
+  } else {
+    body.innerHTML = `
+      <div class="account-tabs">
+        <button class="account-tab ${mode === "profile" ? "is-active" : ""}" data-account-view="profile" type="button">Mis datos</button>
+        <button class="account-tab ${mode === "orders" ? "is-active" : ""}" data-account-view="orders" type="button">Mis pedidos</button>
+      </div>
+      ${mode === "orders" ? renderOrdersView() : renderProfileView()}
+      <div style="margin-top:14px; display:flex; gap:8px; justify-content:flex-end; position:relative; z-index:1;">
+        <button class="btn btn--ghost" type="button" id="account-logout">Cerrar sesión</button>
+      </div>`;
+  }
+
+  body.querySelectorAll("[data-account-view]").forEach((btn) => {
+    btn.addEventListener("click", () => renderAccountModal(btn.dataset.accountView));
+  });
+  bindAccountForms();
+}
+
+function renderLoginForm() {
+  return `<form id="account-login-form" class="account-card" novalidate>
+    <h3>Ingresar</h3>
+    <div class="account-grid">
+      <label class="field field--full">Email <input name="email" type="email" autocomplete="email" required placeholder="tu@email.com" /></label>
+      <label class="field field--full">Contraseña <input name="password" type="password" autocomplete="current-password" required placeholder="••••••••" /></label>
+    </div>
+    <div style="margin-top:12px; display:flex; gap:8px; align-items:center;">
+      <button class="btn btn--ink" type="submit">Ingresar</button>
+    </div>
+    <div class="account-msg" id="account-login-msg"></div>
+  </form>`;
+}
+
+function renderRegisterForm() {
+  return `<form id="account-register-form" class="account-card" novalidate>
+    <h3>Crear cuenta</h3>
+    <div class="account-grid">
+      <label class="field">Nombre y apellido <input name="name" type="text" autocomplete="name" required placeholder="Tu nombre" /></label>
+      <label class="field">Teléfono <input name="phone" type="tel" autocomplete="tel" placeholder="+54 11 ..." /></label>
+      <label class="field">Email <input name="email" type="email" autocomplete="email" required placeholder="tu@email.com" /></label>
+      <label class="field">Contraseña <input name="password" type="password" autocomplete="new-password" required minlength="6" placeholder="Mínimo 6 caracteres" /></label>
+      <label class="field field--full">Localidad / ciudad <input name="city" type="text" autocomplete="address-level2" placeholder="Ej: Bella Vista" /></label>
+      <label class="field">Provincia <input name="province" type="text" autocomplete="address-level1" placeholder="Buenos Aires" value="Buenos Aires" /></label>
+      <label class="field">Código postal <input name="postal" type="text" autocomplete="postal-code" placeholder="Ej: B1661" /></label>
+      <label class="field field--full">Dirección <input name="address" type="text" autocomplete="street-address" placeholder="Calle y número" /></label>
+    </div>
+    <div style="margin-top:12px; display:flex; gap:8px; align-items:center;">
+      <button class="btn btn--ink" type="submit">Crear mi cuenta</button>
+    </div>
+    <div class="account-msg" id="account-register-msg"></div>
+  </form>`;
+}
+
+function renderProfileView() {
+  const c = currentCustomer || {};
+  const a = c.address || {};
+  return `<form id="account-profile-form" class="account-card" novalidate>
+    <h3>Mis datos y envío</h3>
+    <p class="account-note">Estos datos se usarán para completar tus compras más rápido.</p>
+    <div class="account-grid" style="margin-top:10px;">
+      <label class="field">Nombre y apellido <input name="name" type="text" value="${escapeHtml(c.name || "")}" required /></label>
+      <label class="field">Teléfono <input name="phone" type="tel" value="${escapeHtml(c.phone || a.phone || "")}" /></label>
+      <label class="field field--full">Email <input type="email" value="${escapeHtml(c.email || "")}" disabled /></label>
+      <label class="field">Localidad / ciudad <input name="city" type="text" value="${escapeHtml(a.city || "")}" placeholder="Ej: Bella Vista" /></label>
+      <label class="field">Provincia <input name="province" type="text" value="${escapeHtml(a.province || "Buenos Aires")}" /></label>
+      <label class="field">Código postal <input name="postal" type="text" value="${escapeHtml(a.postal || "")}" placeholder="Ej: B1661" /></label>
+      <label class="field">País <input name="country" type="text" value="${escapeHtml(a.country || "Argentina")}" /></label>
+      <label class="field field--full">Dirección <input name="address" type="text" value="${escapeHtml(a.address || "")}" placeholder="Calle y número" /></label>
+      <label class="field field--full">Notas de entrega <input name="notes" type="text" value="${escapeHtml(a.notes || "")}" placeholder="Piso, timbre, referencias" /></label>
+    </div>
+    <div style="margin-top:12px; display:flex; gap:8px; align-items:center;">
+      <button class="btn btn--ink" type="submit">Guardar datos</button>
+    </div>
+    <div class="account-msg" id="account-profile-msg"></div>
+  </form>`;
+}
+
+function renderOrdersView() {
+  return `<div class="account-card" id="account-orders-card">
+    <h3>Mis pedidos</h3>
+    <p class="account-note">Historial de compras asociado a tu cuenta.</p>
+    <div class="account-orders" id="account-orders-list"><p class="account-note">Cargando pedidos…</p></div>
+  </div>`;
+}
+
+async function loadAccountOrders() {
+  const list = document.getElementById("account-orders-list");
+  if (!list) return;
+  try {
+    const data = await accountApi("/account/orders");
+    const orders = data.orders || [];
+    if (!orders.length) {
+      list.innerHTML = `<p class="account-note">Todavía no tenés pedidos registrados con esta cuenta.</p>`;
+      return;
+    }
+    list.innerHTML = orders.slice(0, 10).map((o) => `
+      <div class="account-order">
+        <strong>${escapeHtml(o.id || "")} · ${escapeHtml(String(o.status || "").toUpperCase())}</strong>
+        <span>${money(o.totalArs || 0, "ARS")} · ${escapeHtml(new Date(o.createdAt || Date.now()).toLocaleDateString("es-AR"))}</span>
+        <span class="account-note">${escapeHtml((o.items || []).map((i) => `${i.quantity}× ${i.name}`).join(", ").slice(0, 120))}</span>
+      </div>`).join("");
+  } catch (err) {
+    list.innerHTML = `<p class="account-msg is-error">${escapeHtml(err.message || "No pudimos cargar tus pedidos.")}</p>`;
+  }
+}
+
+function bindAccountForms() {
+  const login = document.getElementById("account-login-form");
+  if (login) {
+    login.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("account-login-msg");
+      const fd = new FormData(login);
+      try {
+        msg.textContent = "Ingresando…"; msg.className = "account-msg";
+        const data = await accountApi("/account/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: fd.get("email"), password: fd.get("password") }) });
+        setCustomerToken(data.token);
+        currentCustomer = data.customer;
+        updateAccountButton();
+        toast(`Hola, ${(currentCustomer.name || "cliente").split(" ")[0]} 👋`);
+        renderAccountModal("profile");
+        window.dispatchEvent(new CustomEvent("aurea:customer-change", { detail: { customer: currentCustomer } }));
+      } catch (err) {
+        msg.textContent = err.message; msg.className = "account-msg is-error";
+      }
+    });
+  }
+
+  const reg = document.getElementById("account-register-form");
+  if (reg) {
+    const cityInput = reg.querySelector('[name="city"]');
+    const provInput = reg.querySelector('[name="province"]');
+    const postalInput = reg.querySelector('[name="postal"]');
+    async function autoCp() {
+      if (postalInput && postalInput.value.trim()) return;
+      try {
+        const r = await fetch(`/api/shipping/postal-code?city=${encodeURIComponent(cityInput?.value || "")}&province=${encodeURIComponent(provInput?.value || "Buenos Aires")}`);
+        const d = await r.json();
+        if (d.postalCode && postalInput && !postalInput.value.trim()) postalInput.value = d.postalCode;
+      } catch {}
+    }
+    if (cityInput) cityInput.addEventListener("blur", autoCp);
+    reg.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("account-register-msg");
+      const fd = new FormData(reg);
+      try {
+        msg.textContent = "Creando tu cuenta…"; msg.className = "account-msg";
+        const payload = {
+          name: fd.get("name"), email: fd.get("email"), password: fd.get("password"), phone: fd.get("phone"),
+          address: { city: fd.get("city"), province: fd.get("province"), postal: fd.get("postal"), address: fd.get("address"), country: "Argentina", phone: fd.get("phone"), name: fd.get("name") }
+        };
+        const data = await accountApi("/account/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        setCustomerToken(data.token);
+        currentCustomer = data.customer;
+        updateAccountButton();
+        toast("Cuenta creada. Tus datos se guardaron para tu próxima compra.");
+        renderAccountModal("profile");
+        window.dispatchEvent(new CustomEvent("aurea:customer-change", { detail: { customer: currentCustomer } }));
+      } catch (err) {
+        msg.textContent = err.message; msg.className = "account-msg is-error";
+      }
+    });
+  }
+
+  const prof = document.getElementById("account-profile-form");
+  if (prof) {
+    const cityInput = prof.querySelector('[name="city"]');
+    const provInput = prof.querySelector('[name="province"]');
+    const postalInput = prof.querySelector('[name="postal"]');
+    async function autoCpProfile() {
+      try {
+        const r = await fetch(`/api/shipping/postal-code?city=${encodeURIComponent(cityInput?.value || "")}&province=${encodeURIComponent(provInput?.value || "Buenos Aires")}`);
+        const d = await r.json();
+        if (d.postalCode && postalInput) postalInput.value = d.postalCode;
+      } catch {}
+    }
+    if (cityInput) cityInput.addEventListener("change", autoCpProfile);
+    prof.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("account-profile-msg");
+      const fd = new FormData(prof);
+      try {
+        msg.textContent = "Guardando…"; msg.className = "account-msg";
+        const payload = {
+          name: fd.get("name"), phone: fd.get("phone"),
+          address: { city: fd.get("city"), province: fd.get("province"), postal: fd.get("postal"), address: fd.get("address"), country: fd.get("country"), notes: fd.get("notes"), phone: fd.get("phone"), name: fd.get("name") }
+        };
+        const data = await accountApi("/account/profile", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        currentCustomer = data.customer;
+        updateAccountButton();
+        msg.textContent = "Datos guardados correctamente."; msg.className = "account-msg is-ok";
+        toast("Datos de cuenta actualizados.");
+        window.dispatchEvent(new CustomEvent("aurea:customer-change", { detail: { customer: currentCustomer } }));
+      } catch (err) {
+        msg.textContent = err.message; msg.className = "account-msg is-error";
+      }
+    });
+  }
+
+  const logout = document.getElementById("account-logout");
+  if (logout) {
+    logout.addEventListener("click", () => {
+      setCustomerToken("");
+      currentCustomer = null;
+      updateAccountButton();
+      closeAccountModal();
+      toast("Sesión cerrada.");
+      window.dispatchEvent(new CustomEvent("aurea:customer-change", { detail: { customer: null } }));
+    });
+  }
+
+  if (document.getElementById("account-orders-list")) loadAccountOrders();
+}
+
+export async function customerAccountApi(path, options = {}) { return accountApi(path, options); }
+
+function injectAccountButton() {
+  const actions = document.querySelector(".header__actions");
+  if (!actions || document.getElementById("account-btn")) return;
+  const cartBtn = actions.querySelector(".cart-btn");
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "icon-btn account-btn";
+  btn.id = "account-btn";
+  btn.setAttribute("aria-label", "Mi cuenta");
+  btn.title = "Mi cuenta";
+  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 19.5c1.8-3.2 4.3-4.8 7.5-4.8s5.7 1.6 7.5 4.8"/></svg><span class="account-btn-label">Cuenta</span>`;
+  btn.addEventListener("click", () => openAccountModal("auto"));
+  if (cartBtn) actions.insertBefore(btn, cartBtn); else actions.appendChild(btn);
+}
+
+async function initAccount() {
+  injectAccountButton();
+  await refreshCustomer();
+}
+
 export async function init({ page = "home" } = {}) {
   initHeader();
   initNewsletter();
@@ -714,6 +1058,7 @@ export async function init({ page = "home" } = {}) {
   });
 
   initQuickView();
+  initAccount().catch(() => {});
 }
 
 window.Aurea = {
@@ -738,4 +1083,10 @@ window.Aurea = {
   init,
   openQuickView,
   openLightbox,
+  getCurrentCustomer,
+  refreshCustomer,
+  openAccountModal,
+  closeAccountModal,
+  getCustomerToken,
+  customerAccountApi,
 };

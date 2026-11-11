@@ -69,3 +69,32 @@ export function rateLimit({ windowMs = 60_000, max = 60, key = "global" } = {}) 
     next();
   };
 }
+
+
+export function createCustomerToken(customerId) {
+  const payload = Buffer.from(
+    JSON.stringify({ role: "customer", sub: String(customerId), exp: Date.now() + 1000 * 60 * 60 * 24 * 30 }),
+  ).toString("base64url");
+  return `${payload}.${sign(payload)}`;
+}
+
+export function verifyCustomerToken(token) {
+  if (!token || typeof token !== "string" || !token.includes(".")) return null;
+  const [payload, signature] = token.split(".");
+  const expected = sign(payload);
+  if (signature.length !== expected.length) return null;
+  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
+  try {
+    const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    if (data.role !== "customer" || !data.sub || data.exp <= Date.now()) return null;
+    return { id: data.sub, exp: data.exp };
+  } catch {
+    return null;
+  }
+}
+
+export function customerFromRequest(req) {
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : "";
+  return verifyCustomerToken(token);
+}

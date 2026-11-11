@@ -36,7 +36,9 @@ if (!cartLines().length) {
     </div>`;
 } else {
   render();
+  setupAccountAndPostalAutofill();
   await refresh({ initial: true });
+  prefillFromCustomer();
 }
 
 function render() {
@@ -243,6 +245,135 @@ async function syncPaymentPrice() {
   state.shippingMethod = totals.shippingMethod;
   renderSummary();
   renderShipping();
+}
+
+
+function prefillFromCustomer() {
+  const customer = window.Aurea?.getCurrentCustomer?.();
+  if (!customer) return;
+  const a = customer.address || {};
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (!el || !val) return;
+    if (!String(el.value || "").trim()) el.value = String(val);
+  };
+  setVal("name", customer.name || a.name);
+  setVal("email", customer.email);
+  setVal("phone", customer.phone || a.phone);
+  setVal("address", a.address);
+  setVal("city", a.city);
+  setVal("province", a.province || "Buenos Aires");
+  setVal("postal", a.postal);
+  setVal("country", a.country || "Argentina");
+  if (a.country && document.getElementById("country")) {
+    const sel = document.getElementById("country");
+    if ([...sel.options].some((o) => o.value === a.country) && !sel.dataset.userSet) {
+      sel.value = a.country;
+      state.country = a.country;
+    }
+  }
+  // Si hay localidad/provincia de Buenos Aires y falta CP, autocompletar
+  autoFillPostalFromCity(true);
+  renderAccountHint();
+}
+
+let lastPostalLookup = "";
+async function autoFillPostalFromCity(onlyIfEmpty = false) {
+  const city = document.getElementById("city")?.value?.trim() || "";
+  const province = document.getElementById("province")?.value?.trim() || state.country || "Buenos Aires";
+  const postalInput = document.getElementById("postal");
+  if (!postalInput) return;
+  if (onlyIfEmpty && postalInput.value.trim()) return;
+  const key = `${province}|${city}`.toLowerCase();
+  if (!city) return;
+  if (key === lastPostalLookup && !onlyIfEmpty) return;
+  lastPostalLookup = key;
+  try {
+    const res = await fetch(`/api/shipping/postal-code?city=${encodeURIComponent(city)}&province=${encodeURIComponent(province)}`);
+    const data = await res.json();
+    if (data && data.postalCode) {
+      if (!onlyIfEmpty || !postalInput.value.trim()) {
+        postalInput.value = data.postalCode;
+        postalInput.dataset.autofilled = "1";
+      }
+    }
+  } catch {
+    /* silencioso */
+  }
+}
+
+function renderAccountHint() {
+  const form = document.getElementById("checkout-form");
+  if (!form) return;
+  let hint = document.getElementById("checkout-account-hint");
+  const customer = window.Aurea?.getCurrentCustomer?.();
+  if (!hint) {
+    hint = document.createElement("div");
+    hint.id = "checkout-account-hint";
+    hint.className = "account-card";
+    hint.style.marginBottom = "14px";
+    const firstPanel = form.querySelector(".panel");
+    if (firstPanel) firstPanel.parentNode.insertBefore(hint, firstPanel);
+  }
+  if (customer) {
+    hint.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+          <strong style="font-family:var(--serif);font-size:20px;font-weight:400;">Comprando como ${escapeHtml(customer.name || "cliente")}</strong>
+          <div class="account-note">Usamos tus datos guardados para completar el envío. Podés editarlos si hace falta.</div>
+        </div>
+        <button type="button" class="btn btn--ghost" id="checkout-account-edit">Mis datos</button>
+      </div>`;
+    hint.querySelector("#checkout-account-edit")?.addEventListener("click", () => window.Aurea?.openAccountModal?.("profile"));
+  } else {
+    hint.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+          <strong style="font-family:var(--serif);font-size:20px;font-weight:400;">¿Ya tenés cuenta?</strong>
+          <div class="account-note">Ingresá o creá tu cuenta para guardar tus datos y completar el envío más rápido.</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="btn btn--ghost" id="checkout-login">Ingresar</button>
+          <button type="button" class="btn btn--ink" id="checkout-register">Crear cuenta</button>
+        </div>
+      </div>`;
+    hint.querySelector("#checkout-login")?.addEventListener("click", () => window.Aurea?.openAccountModal?.("login"));
+    hint.querySelector("#checkout-register")?.addEventListener("click", () => window.Aurea?.openAccountModal?.("register"));
+  }
+}
+
+function setupAccountAndPostalAutofill() {
+  // Esperar a que la cuenta cargue y prellenar
+  setTimeout(() => { prefillFromCustomer(); }, 200);
+  setTimeout(() => { prefillFromCustomer(); }, 900);
+  window.addEventListener("aurea:customer-change", () => { prefillFromCustomer(); });
+
+  const city = document.getElementById("city");
+  const province = document.getElementById("province");
+  const country = document.getElementById("country");
+  const postal = document.getElementById("postal");
+
+  const onCityChange = () => {
+    // si el usuario cambia localidad, recalcular CP automáticamente
+    if (postal) postal.dataset.autofilled = "";
+    autoFillPostalFromCity(false);
+  };
+  if (city) {
+    city.addEventListener("blur", onCityChange);
+    city.addEventListener("change", onCityChange);
+  }
+  if (province) {
+    province.addEventListener("blur", () => autoFillPostalFromCity(false));
+    province.addEventListener("change", () => autoFillPostalFromCity(false));
+  }
+  if (country) {
+    country.addEventListener("change", () => { country.dataset.userSet = "1"; autoFillPostalFromCity(false); });
+  }
+  if (postal) {
+    postal.addEventListener("input", () => { postal.dataset.autofilled = ""; });
+  }
+
+  renderAccountHint();
 }
 
 function renderSummary() {

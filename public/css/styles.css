@@ -1096,3 +1096,209 @@ h1, h2, h3, h4, p { margin: 0; }
   .footer__bottom { flex-direction: column; align-items: flex-start; }
   .drawer { width: 100%; }
 }
+
+/* ── Vintage refresh: header, carrito y mensajes ─────────────── */
+:root {
+  --vintage-gold: #b08a4a;
+  --vintage-seal: #7a5a2e;
+  --vintage-paper: #f7f1e3;
+  --vintage-ink: #1b1712;
+}
+.header {
+  min-height: 96px;
+  background:
+    linear-gradient(180deg, rgba(247,241,227,0.98), rgba(243,240,231,0.92)),
+    repeating-linear-gradient(90deg, rgba(122,90,46,0.03) 0, rgba(122,90,46,0.03) 1px, transparent 1px, transparent 12px);
+  border-bottom: 2px double rgba(122, 90, 46, 0.28);
+  box-shadow: 0 10px 30px -22px rgba(27, 23, 18, 0.45);
+}
+.header::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -6px;
+  height: 4px;
+  background: repeating-linear-gradient(90deg, rgba(176,138,74,0.55) 0 10px, transparent 10px 18px);
+  opacity: 0.35;
+  pointer-events: none;
+}
+.header__inner {
+  height: 96px;
+  gap: 36px;
+  padding-top: 4px;
+}
+.brand {
+  font-size: 34px;
+  letter-spacing: 0.2em;
+  color: var(--vintage-ink);
+  text-shadow: 0 1px 0 rgba(255,255,255,0.7);
+  position: relative;
+  padding: 4px 2px;
+}
+.brand::before {
+  width: 38px;
+  height: 38px;
+  flex-basis: 38px;
+  filter: sepia(0.35) contrast(1.05);
+}
+.brand::after {
+  content: "Casa & Deco · Desde siempre";
+  position: absolute;
+  left: 49px;
+  bottom: -10px;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(122, 90, 46, 0.85);
+  font-weight: 500;
+}
+.nav a {
+  font-family: var(--serif);
+  font-size: 17px;
+  letter-spacing: 0.01em;
+  color: #4b4338;
+}
+.nav a::after {
+  height: 2px;
+  background: linear-gradient(90deg, var(--vintage-gold), var(--vintage-seal));
+}
+.announce {
+  background: linear-gradient(90deg, #1b1712, #2a231a 50%, #1b1712);
+  border-bottom: 1px solid rgba(176,138,74,0.35);
+}
+.announce__item::after { color: #d8c08a; }
+
+/* Cart drawer vintage */
+.overlay { background: rgba(27, 23, 18, 0.52); backdrop-filter: blur(4px); }
+.drawer {
+  background:
+    radial-gradient(circle at top right, rgba(176,138,74,0.12), transparent 35%),
+    linear-gradient(180deg, #fbf8f1 0%, #f3ede0 100%);
+  border-left: 2px solid rgba(122,90,46,0.22);
+  box-shadow: -30px 0 70px -30px rgba(27,23,18,0.5);
+}
+.drawer::before {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border: 1px solid rgba(176,138,74,0.22);
+  border-radius: 14px;
+  pointer-events: none;
+}
+.drawer__head {
+  padding: 26px 28px 20px;
+  background: linear-gradient(180deg, rgba(247,241,227,0.9), rgba(243,237,224,0.4));
+  border-bottom: 1px dashed rgba(122,90,46,0.35);
+}
+.drawer__head h2 {
+  font-size: 34px;
+  letter-spacing: 0.02em;
+  color: var(--vintage-ink);
+}
+.drawer__head h2::after {
+  content: "Selección de tu casa";
+  display: block;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(122,90,46,0.9);
+  margin-top: 4px;
+  font-weight: 500;
+}
+.cart-line {
+  border-bottom: 1px dashed rgba(122,90,46,0.22);
+  padding: 16px 0;
+}
+.cart-line__img {
+  border: 1px solid rgba(122,90,46,0.18);
+  border-radius: 10px;
+  filter: sepia(0.08) contrast(1.02);
+}
+.cart-line__name { font-family: var(--serif); font-size: 20px; font-weight: 400; }
+.drawer__foot {
+  background:
+    linear-gradient(180deg, rgba(239,232,218,0.9), rgba(232,223,205,0.95));
+  border-top: 1px solid rgba(122,90,46,0.28);
+}
+.drawer__subtotal strong { font-family: var(--serif); font-size: 30px; font-weight: 400; }
+.ship-progress__fill { background: linear-gradient(90deg, var(--vintage-gold), var(--vintage-seal)); }
+.drawer__note {
+  font-family: var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 9.5px;
+  color: rgba(74,58,34,0.85);
+}
+
+/* Toast/messages vintage */
+.toast {
+  background: linear-gradient(180deg, #2a231a, #1b1712);
+  color: #f7f1e3;
+  border: 1px solid rgba(176,138,74,0.45);
+  border-radius: 14px;
+  padding: 14px 22px;
+  font-family: var(--serif);
+  font-size: 18px;
+  letter-spacing: 0.01em;
+  box-shadow: 0 18px 40px -18px rgba(27,23,18,0.7), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.toast::before {
+  content: "✦";
+  color: #d8c08a;
+  margin-right: 10px;
+  font-size: 12px;
+  vertical-align: middle;
+}
+.toast.is-error {
+  background: linear-gradient(180deg, #6d241b, #4a1712);
+  border-color: rgba(255,210,180,0.25);
+}
+
+/* Account UI */
+.account-btn-label { display:none; font-family: var(--serif); font-size: 15px; }
+@media (min-width: 1100px) { .account-btn-label { display:inline; margin-left:2px; } }
+.account-modal {
+  position: fixed; inset: 0; z-index: 360; display: none;
+}
+.account-modal.is-open { display: block; }
+.account-modal__overlay { position:absolute; inset:0; background: rgba(27,23,18,0.55); backdrop-filter: blur(4px); }
+.account-modal__panel {
+  position: relative; margin: 6vh auto; width: min(720px, calc(100% - 32px));
+  max-height: 88vh; overflow: auto;
+  background: linear-gradient(180deg, #fbf8f1, #f3ede0);
+  border: 1px solid rgba(122,90,46,0.25);
+  border-radius: 18px; box-shadow: 0 30px 80px -30px rgba(27,23,18,0.6);
+  padding: 22px 22px 18px;
+}
+.account-modal__panel::before { content:""; position:absolute; inset:10px; border:1px solid rgba(176,138,74,0.2); border-radius:12px; pointer-events:none; }
+.account-modal__head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px; position:relative; z-index:1; }
+.account-modal__head h2 { font-family: var(--serif); font-size: 34px; font-weight:400; margin:0; }
+.account-modal__head p { margin:4px 0 0; color: var(--muted); font-size:13px; }
+.account-tabs { display:flex; gap:8px; margin: 6px 0 14px; position:relative; z-index:1; }
+.account-tab { padding:8px 14px; border-radius:999px; border:1px solid rgba(122,90,46,0.25); font-size:12px; font-family: var(--mono); letter-spacing:.06em; text-transform:uppercase; color:#5b4a33; background: rgba(255,255,255,0.4); }
+.account-tab.is-active { background:#1b1712; color:#f7f1e3; border-color:#1b1712; }
+.account-grid { display:grid; grid-template-columns: 1fr 1fr; gap:12px; position:relative; z-index:1; }
+.account-grid .field--full { grid-column: 1 / -1; }
+.account-card { border:1px solid rgba(122,90,46,0.18); border-radius:14px; padding:14px; background: rgba(255,255,255,0.45); position:relative; z-index:1; }
+.account-card h3 { font-family: var(--serif); font-size:22px; font-weight:400; margin:0 0 8px; }
+.account-note { font-size:12px; color: var(--muted); }
+.account-orders { display:grid; gap:10px; margin-top:10px; }
+.account-order { border:1px dashed rgba(122,90,46,0.28); border-radius:12px; padding:10px 12px; background: rgba(255,255,255,0.35); display:grid; gap:4px; }
+.account-order strong { font-family: var(--mono); font-size:12px; }
+.account-msg { font-size:12px; margin-top:8px; }
+.account-msg.is-error { color:#7f2d20; }
+.account-msg.is-ok { color:#2f7a49; }
+
+@media (max-width: 900px) {
+  .header__inner { height: 82px; }
+  .brand { font-size: 28px; }
+  .brand::after { display:none; }
+  .account-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .header__inner { height: 72px; }
+  .brand { font-size: 24px; }
+  .drawer__head h2 { font-size: 28px; }
+  .toast { font-size: 16px; }
+}

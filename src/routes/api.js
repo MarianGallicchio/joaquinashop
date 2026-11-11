@@ -13,6 +13,9 @@ import { getStoreSettings } from "../settings.js";
 import { rateLimit } from "../auth.js";
 import { safeEqual } from "../auth.js";
 import { getStock } from "../inventory.js";
+import { customerFromRequest, createCustomerToken } from "../auth.js";
+import { registerCustomer, loginCustomer, findCustomerById, updateCustomerProfile, ordersForCustomerEmail } from "../customers.js";
+import { lookupBuenosAiresPostalCode } from "../ba-postal-codes.js";
 
 export const api = express.Router();
 
@@ -293,4 +296,79 @@ api.post("/orders/:id/sync-payment", rateLimit({ key: "sync-payment", max: 30 })
   } catch (error) {
     next(error);
   }
+});
+
+
+
+/* ── Cuentas de compradores ──────────────────────────────────── */
+function publicCustomerSafe(c) {
+  if (!c) return null;
+  const { passwordHash, ...safe } = c;
+  return safe;
+}
+
+function requireCustomer(req, res) {
+  const tokenData = customerFromRequest(req);
+  if (!tokenData) {
+    res.status(401).json({ error: "Iniciá sesión para continuar." });
+    return null;
+  }
+  const customer = findCustomerById(tokenData.id);
+  if (!customer) {
+    res.status(401).json({ error: "Sesión inválida. Volvé a iniciar sesión." });
+    return null;
+  }
+  return customer;
+}
+
+api.post("/account/register", rateLimit({ key: "register", max: 20 }), (req, res, next) => {
+  try {
+    const customer = registerCustomer(req.body || {});
+    const token = createCustomerToken(customer.id);
+    res.json({ ok: true, token, customer });
+  } catch (error) {
+    next(error);
+  }
+});
+
+api.post("/account/login", rateLimit({ key: "login", max: 20 }), (req, res, next) => {
+  try {
+    const customer = loginCustomer(req.body || {});
+    const token = createCustomerToken(customer.id);
+    res.json({ ok: true, token, customer });
+  } catch (error) {
+    next(error);
+  }
+});
+
+api.get("/account/me", (req, res) => {
+  const customer = requireCustomer(req, res);
+  if (!customer) return;
+  res.json({ customer: publicCustomerSafe(customer) });
+});
+
+api.put("/account/profile", (req, res, next) => {
+  try {
+    const customer = requireCustomer(req, res);
+    if (!customer) return;
+    const updated = updateCustomerProfile(customer.id, req.body || {});
+    res.json({ ok: true, customer: updated });
+  } catch (error) {
+    next(error);
+  }
+});
+
+api.get("/account/orders", (req, res) => {
+  const customer = requireCustomer(req, res);
+  if (!customer) return;
+  const orders = ordersForCustomerEmail(customer.email)
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+    .map(publicOrder);
+  res.json({ orders });
+});
+
+api.get("/shipping/postal-code", (req, res) => {
+  const { city, province } = req.query || {};
+  const cp = lookupBuenosAiresPostalCode(String(city || ""), String(province || "Buenos Aires"));
+  res.json({ city: String(city || ""), province: String(province || ""), postalCode: cp || null });
 });

@@ -25,6 +25,7 @@ function emptyDb() {
     processedWebhooks: [],
     productOverrides: {},
     customProducts: [],
+    customers: [],
   };
 }
 
@@ -48,6 +49,7 @@ function load() {
       db.processedWebhooks ??= [];
       db.productOverrides ??= {};
       db.customProducts ??= [];
+      db.customers ??= [];
       if (db.meta?.seedVersion !== SEED_VERSION && db.orders.every((o) => o.demo)) {
         reseed();
         return;
