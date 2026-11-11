@@ -1,4 +1,4 @@
-import { ALL_PRODUCTS } from "./catalog.js";
+import { getAllProducts, BASE_PRODUCTS } from "./catalog.js";
 import { getDb, save } from "./store.js";
 
 const DEFAULT_STOCK = 20;
@@ -12,7 +12,7 @@ function ensureInventory() {
   db.inventory ??= {};
   let changed = false;
 
-  for (const product of ALL_PRODUCTS) {
+  for (const product of getAllProducts()) {
     const current = db.inventory[product.id];
     if (!current || !Number.isFinite(Number(current.stock))) {
       db.inventory[product.id] = {
@@ -67,13 +67,13 @@ function recordMovement({ productId, delta, stock, reason, orderId = null }) {
 
 export function inventoryItem(productId) {
   ensureInventory();
-  const product = ALL_PRODUCTS.find((item) => item.id === productId);
+  const product = getAllProducts().find((item) => item.id === productId);
   return product ? itemFor(product) : null;
 }
 
 export function inventoryList() {
   ensureInventory();
-  return ALL_PRODUCTS.map(itemFor);
+  return getAllProducts().map(itemFor);
 }
 
 export function getStock(productId) {
@@ -88,7 +88,7 @@ export function stockMovements(limit = 30) {
 
 export function setStock(productId, nextStock, reason = "Ajuste manual") {
   ensureInventory();
-  const product = ALL_PRODUCTS.find((item) => item.id === productId);
+  const product = getAllProducts().find((item) => item.id === productId);
   if (!product) {
     const error = new Error("Producto no encontrado.");
     error.status = 404;
@@ -122,7 +122,7 @@ export function checkStock(items = []) {
   ensureInventory();
   const shortages = [];
   for (const item of items) {
-    const product = ALL_PRODUCTS.find((entry) => entry.id === item.id);
+    const product = getAllProducts().find((entry) => entry.id === item.id);
     if (!product) continue;
     const available = Number(getDb().inventory[product.id]?.stock) || 0;
     if (available < item.qty) {

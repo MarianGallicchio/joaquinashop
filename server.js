@@ -38,14 +38,15 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(
-  express.json({
-    limit: "256kb",
-    verify: (req, res, buffer) => {
-      req.rawBody = buffer;
-    },
-  }),
-);
+const jsonVerify = (req, res, buffer) => { req.rawBody = buffer; };
+
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/webhooks")) return next();
+  if (req.path.startsWith("/api/admin")) {
+    return express.json({ limit: "8mb", verify: jsonVerify })(req, res, next);
+  }
+  return express.json({ limit: "256kb", verify: jsonVerify })(req, res, next);
+});
 
 /* Webhooks necesitan el cuerpo crudo para validar firmas */
 app.use("/api/webhooks", webhooks);

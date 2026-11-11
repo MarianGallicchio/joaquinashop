@@ -24,6 +24,8 @@ import {
 import { methodsForCountry } from "../payments/index.js";
 import { getAutomationStatus, runAutomations } from "../automations.js";
 import { listBackups, createBackup, restoreBackup, backupStatus } from "../backups.js";
+import { getAllProducts, CATEGORIES, BASE_PRODUCTS } from "../catalog.js";
+import { setOverride, upsertCustomProduct, saveUploadedImage, listOverrides } from "../product-overrides.js";
 
 export const admin = express.Router();
 
@@ -366,5 +368,122 @@ admin.post("/backups/restore", (req, res) => {
     res.json({ ok: true, result });
   } catch (error) {
     res.status(400).json({ error: error.message });
+  }
+});
+
+
+/* ── Productos: publicación, catálogo y contenido ─────────────── */
+admin.get("/products", (req, res) => {
+  const products = getAllProducts();
+  const inv = inventoryList();
+  const invMap = new Map(inv.map((i) => [i.id, i]));
+  const salesMetrics = metrics(Number(req.query.days) || 30).products || [];
+  const salesMap = new Map(salesMetrics.map((m) => [m.id, m]));
+  const items = products.map((p) => {
+    const stock = invMap.get(p.id) || { stock: 0, lowStockThreshold: 5, status: "out", updatedAt: null };
+    const sales = salesMap.get(p.id) || null;
+    return {
+      ...p,
+      costArs: p.costArs,
+      inventory: stock,
+      sales,
+    };
+  });
+  res.json({ categories: CATEGORIES, products: items, summary: inventorySummary() });
+});
+
+function pickProductPatch(body = {}) {
+  const patch = {};
+  const str = (v, max = 500) => (v == null ? undefined : String(v).slice(0, max));
+  const num = (v) => (v === '' || v == null ? undefined : Number(v));
+  if (body.name != null) patch.name = str(body.name, 120);
+  if (body.subtitle != null) patch.subtitle = str(body.subtitle, 180);
+  if (body.short != null) patch.short = str(body.short, 1000);
+  if (body.category != null) patch.category = str(body.category, 40);
+  if (body.badge != null) patch.badge = str(body.badge, 40);
+  if (body.image != null) patch.image = str(body.image, 500);
+  if (body.shippingDays != null) patch.shippingDays = str(body.shippingDays, 80);
+  if (body.supplierSku != null) patch.supplierSku = str(body.supplierSku, 80);
+  if (body.priceArs != null && Number.isFinite(num(body.priceArs))) patch.priceArs = Math.max(0, Math.round(num(body.priceArs)));
+  if (body.cardPriceArs != null && Number.isFinite(num(body.cardPriceArs))) patch.cardPriceArs = Math.max(0, Math.round(num(body.cardPriceArs)));
+  if (body.compareAtArs != null && Number.isFinite(num(body.compareAtArs))) patch.compareAtArs = Math.max(0, Math.round(num(body.compareAtArs)));
+  if (body.costArs != null && Number.isFinite(num(body.costArs))) patch.costArs = Math.max(0, Math.round(num(body.costArs)));
+  if (Array.isArray(body.colors)) patch.colors = body.colors.map((c) => str(c, 40)).filter(Boolean).slice(0, 20);
+  if (Array.isArray(body.benefits)) patch.benefits = body.benefits.map((b) => str(b, 240)).filter(Boolean).slice(0, 20);
+  if (Array.isArray(body.gallery)) patch.gallery = body.gallery.map((g) => str(g, 500)).filter(Boolean).slice(0, 20);
+  if (body.specs && typeof body.specs === 'object' && !Array.isArray(body.specs)) {
+    const specs = {};
+    for (const [k, v] of Object.entries(body.specs).slice(0, 30)) {
+      const key = str(k, 60); const val = str(v, 240);
+      if (key && val) specs[key] = val;
+    }
+    patch.specs = specs;
+  }
+  if (typeof body.published === 'boolean') patch.published = body.published;
+  return patch;
+}
+
+admin.put("/products/:id", (req, res, next) => {
+  try {
+    const id = String(req.params.id);
+    const exists = BASE_PRODUCTS.some((p) => p.id === id) || (getDb().customProducts || []).some((p) => p.id === id);
+    if (!exists) return res.status(404).json({ error: "Producto no encontrado." });
+    const patch = pickProductPatch(req.body || {});
+    const isCustom = (getDb().customProducts || []).some((p) => p.id === id);
+    if (isCustom) {
+      const db = getDb();
+      const idx = db.customProducts.findIndex((p) => p.id === id);
+      db.customProducts[idx] = { ...db.customProducts[idx], ...patch, id, updatedAt: new Date().toISOString() };
+      save();
+    } else {
+      setOverride(id, patch);
+    }
+    const product = getAllProducts().find((p) => p.id === id);
+    res.json({ ok: true, product });
+  } catch (error) {
+    next(error);
+  }
+});
+
+admin.post("/products", (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const id = String(body.id || '').trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '') || `custom-${Date.now()}`;
+    const patch = pickProductPatch(body);
+    const product = {
+      id,
+      name: patch.name || 'Nuevo producto',
+      subtitle: patch.subtitle || '',
+      short: patch.short || '',
+      category: patch.category || 'hogar',
+      priceArs: patch.priceArs || 0,
+      cardPriceArs: patch.cardPriceArs,
+      compareAtArs: patch.compareAtArs || 0,
+      costArs: patch.costArs,
+      badge: patch.badge || '',
+      colors: patch.colors || [],
+      benefits: patch.benefits || [],
+      specs: patch.specs || {},
+      image: patch.image || '/assets/products/joaquina/massage-gun.jpg?v=20261111',
+      gallery: patch.gallery && patch.gallery.length ? patch.gallery : [patch.image || '/assets/products/joaquina/massage-gun.jpg?v=20261111'],
+      shippingDays: patch.shippingDays || '5 a 9 días hábiles',
+      supplierSku: patch.supplierSku || '',
+      published: body.published !== false,
+    };
+    upsertCustomProduct(product);
+    res.json({ ok: true, product: getAllProducts().find((p) => p.id === id) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+admin.post("/products/upload-image", (req, res, next) => {
+  try {
+    const { dataUrl, filename, productId } = req.body || {};
+    if (!dataUrl) return res.status(400).json({ error: "Falta la imagen (dataUrl)." });
+    const result = saveUploadedImage({ dataUrl, filenameBase: productId || filename || "product" });
+    res.json({ ok: true, ...result, url: result.path });
+  } catch (error) {
+    next(error);
   }
 });

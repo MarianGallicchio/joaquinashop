@@ -1,6 +1,6 @@
 import express from "express";
 import { config, demoFlags } from "../config.js";
-import { ALL_PRODUCTS, CATEGORIES, BUNDLES, priceFor } from "../catalog.js";
+import { getAllProducts, CATEGORIES, BUNDLES, priceFor } from "../catalog.js";
 import { quote, COUPONS } from "../pricing.js";
 import { methodsForCountry } from "../payments/index.js";
 import { createOrder, findOrder, publicOrder, markPaymentApproved, markPaymentRejected } from "../orders.js";
@@ -35,7 +35,7 @@ api.get("/catalog", (req, res) => {
       arsPerUsd: config.store.arsPerUsd,
     },
     categories: CATEGORIES,
-    products: ALL_PRODUCTS.map((product) => ({
+    products: getAllProducts().map((product) => ({
       ...product,
       stock: getStock(product.id),
       costArs: undefined,

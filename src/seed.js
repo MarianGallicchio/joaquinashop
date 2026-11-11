@@ -1,4 +1,4 @@
-import { PRODUCTS, BUNDLES } from "./catalog.js";
+import { BASE_PRODUCTS, BUNDLES } from "./catalog.js";
 import { config } from "./config.js";
 
 /* PRNG determinístico para que el dataset demo sea reproducible. */
@@ -104,7 +104,7 @@ function buildOrder(seq, date, returning) {
 
   const items = [];
   const count = rand() < 0.24 ? 2 : 1;
-  const pool = [...PRODUCTS];
+  const pool = [...BASE_PRODUCTS];
   for (let i = 0; i < count; i += 1) {
     const product = pool.splice(Math.floor(rand() * pool.length), 1)[0];
     const qty = rand() < 0.12 ? 2 : 1;

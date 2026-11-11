@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ROOT } from "./config.js";
 import { buildSeedOrders, buildSeedEvents } from "./seed.js";
+import { setCatalogOverrides } from "./catalog.js";
 
 const DATA_DIR = path.resolve(ROOT, process.env.DATA_DIR || "data");
 const DB_FILE = path.join(DATA_DIR, "db.json");
@@ -22,6 +23,8 @@ function emptyDb() {
     stockMovements: [],
     events: {},
     processedWebhooks: [],
+    productOverrides: {},
+    customProducts: [],
   };
 }
 
@@ -43,10 +46,13 @@ function load() {
       db.stockMovements ??= [];
       db.events ??= {};
       db.processedWebhooks ??= [];
+      db.productOverrides ??= {};
+      db.customProducts ??= [];
       if (db.meta?.seedVersion !== SEED_VERSION && db.orders.every((o) => o.demo)) {
         reseed();
         return;
       }
+      try { setCatalogOverrides(db.productOverrides || {}, db.customProducts || []); } catch {}
       return;
     } catch (error) {
       console.error("[store] db corrupta, se reconstruye:", error.message);
@@ -66,12 +72,14 @@ function reseed() {
   base.meta.seededAt = new Date().toISOString();
   base.meta.orderSeq = 2000 + orders.length;
   db = base;
+  try { setCatalogOverrides(db.productOverrides || {}, db.customProducts || []); } catch {}
   save();
   console.log(`[store] datos demo generados: ${orders.length} pedidos, ${Object.keys(events).length} días de tráfico`);
 }
 
 export function save() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
+  try { setCatalogOverrides(db?.productOverrides || {}, db?.customProducts || []); } catch {}
   const tmp = `${DB_FILE}.${process.pid}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(db), "utf8");
   fs.renameSync(tmp, DB_FILE);

@@ -628,26 +628,125 @@ const RAW = [
   },
 ];
 
-export const PRODUCTS = RAW.map((product, index) => ({
-  ...product,
-  slug: product.id,
-  compareAtArs: 0,
-  costArs: Math.round(product.priceArs * 0.6),
-  stock: product.stock ?? 20,
-  rating: 0,
-  reviews: 0,
-  image: `${product.image}?v=20261111`,
-  gallery: (product.gallery || [product.image]).map((image) => `${image}?v=20261111`),
-  supplierSku: `LJ-${String(index + 1).padStart(3, "0")}`,
-  shippingDays: "5 a 9 días hábiles",
-}));
+function normalizeBase(product, index) {
+  return {
+    ...product,
+    slug: product.id,
+    compareAtArs: 0,
+    costArs: Math.round(product.priceArs * 0.6),
+    stock: product.stock ?? 20,
+    rating: 0,
+    reviews: 0,
+    image: `${product.image}?v=20261111`,
+    gallery: (product.gallery || [product.image]).map((image) => `${image}?v=20261111`),
+    supplierSku: `LJ-${String(index + 1).padStart(3, "0")}`,
+    shippingDays: "5 a 9 días hábiles",
+  };
+}
 
+export const BASE_PRODUCTS = RAW.map(normalizeBase);
 export const BUNDLES = [];
 
-export const ALL_PRODUCTS = [...PRODUCTS, ...BUNDLES];
+function mergeList() {
+  let overrides = {};
+  let custom = [];
+  try {
+    // lazy import to avoid circular deps at module init in some contexts
+    const { getDb } = require ? null : null;
+  } catch {}
+  try {
+    // dynamic access via global store if loaded
+    // we'll use a soft approach: import store lazily
+  } catch {}
+  return { overrides, custom };
+}
+
+export function getProducts() {
+  return getAllProducts().filter((p) => !p.bundle);
+}
+
+export function getAllProducts() {
+  let db;
+  try {
+    // eslint-disable-next-line global-require
+    db = globalThis.__aureaGetDb ? globalThis.__aureaGetDb() : null;
+  } catch {}
+  if (!db) {
+    try {
+      // synchronous require not available in ESM; use store module state via a hook
+    } catch {}
+  }
+  // We'll read from store's getDb if available through a cached reference
+  let overrides = {};
+  let custom = [];
+  try {
+    if (globalThis.__aureaStore?.getDb) {
+      const d = globalThis.__aureaStore.getDb();
+      overrides = d.productOverrides || {};
+      custom = d.customProducts || [];
+    }
+  } catch {}
+  // fallback: try to import store synchronously via createRequire pattern not set; 
+  // instead, catalog consumers in this app run after store init - use a module-level setter.
+  overrides = _overrideState.overrides || {};
+  custom = _overrideState.custom || [];
+  const mergedBase = BASE_PRODUCTS.map((p) => applyOverride(p, overrides[p.id]));
+  const mergedCustom = custom.map((p) => normalizeCustom(p));
+  return [...mergedBase, ...mergedCustom, ...BUNDLES];
+}
+
+const _overrideState = { overrides: {}, custom: [], ready: false };
+
+export function setCatalogOverrides(overrides = {}, custom = []) {
+  _overrideState.overrides = overrides || {};
+  _overrideState.custom = Array.isArray(custom) ? custom : [];
+  _overrideState.ready = true;
+}
+
+function applyOverride(base, ov) {
+  if (!ov) return { ...base };
+  const merged = { ...base, ...ov };
+  if (ov.gallery && Array.isArray(ov.gallery) && ov.gallery.length) merged.gallery = ov.gallery;
+  if (ov.colors && Array.isArray(ov.colors)) merged.colors = ov.colors;
+  if (ov.benefits && Array.isArray(ov.benefits)) merged.benefits = ov.benefits;
+  if (ov.specs && ov.specs && typeof ov.specs === 'object') merged.specs = ov.specs;
+  // ensure derived/display fields stay coherent
+  if (merged.image && !String(merged.image).includes('?v=')) merged.image = merged.image;
+  if (!Array.isArray(merged.gallery) || !merged.gallery.length) merged.gallery = [merged.image];
+  merged.slug = merged.slug || merged.id;
+  return merged;
+}
+
+function normalizeCustom(p) {
+  const id = String(p.id || '').trim();
+  const image = p.image || '/assets/products/joaquina/placeholder.jpg';
+  return {
+    compareAtArs: 0,
+    costArs: Math.round(Number(p.priceArs || 0) * 0.6),
+    rating: 0,
+    reviews: 0,
+    shippingDays: '5 a 9 días hábiles',
+    colors: [],
+    benefits: [],
+    specs: {},
+    badge: '',
+    short: '',
+    subtitle: '',
+    ...p,
+    id,
+    slug: p.slug || id,
+    priceArs: Number(p.priceArs || 0),
+    cardPriceArs: p.cardPriceArs != null ? Number(p.cardPriceArs) : undefined,
+    image,
+    gallery: Array.isArray(p.gallery) && p.gallery.length ? p.gallery : [image],
+    category: p.category || 'hogar',
+    name: p.name || 'Producto',
+    isCustom: true,
+  };
+}
 
 export function findProduct(id) {
-  return ALL_PRODUCTS.find((p) => p.id === id || p.slug === id);
+  return getAllProducts().find((p) => p.id === id || p.slug === id);
 }
 
 /* Precio en la moneda del país. AR = ARS; resto = USD redondeado.
@@ -656,10 +755,15 @@ export function priceFor(product, currency, arsPerUsd, priceMode = "cash") {
   const ars =
     priceMode === "card" && product.cardPriceArs ? product.cardPriceArs : product.priceArs;
   if (currency === "ARS") {
-    return { price: ars, compareAt: product.compareAtArs };
+    return { price: ars, compareAt: product.compareAtArs || 0 };
   }
   return {
     price: Math.round(ars / arsPerUsd),
-    compareAt: Math.round(product.compareAtArs / arsPerUsd),
+    compareAt: Math.round((product.compareAtArs || 0) / arsPerUsd),
   };
 }
+
+// Backward-compatible exports (snapshots at import time). Prefer getAllProducts()/findProduct().
+// NOTE: these are static snapshots; runtime code should use getters for override-aware data.
+export const PRODUCTS = BASE_PRODUCTS;
+export const ALL_PRODUCTS = BASE_PRODUCTS;

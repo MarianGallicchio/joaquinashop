@@ -47,6 +47,10 @@ const state = {
   automations: null,
 
   backups: null,
+  adminProducts: null,
+  productQuery: "",
+  productCategory: "all",
+  editingProductId: null,
 
   loading: false,
 
@@ -1095,132 +1099,288 @@ function stockEditor(item) {
 
 
 
+
+async function loadProducts({ silent = false } = {}) {
+  try {
+    const data = await adminApi('/api/admin/products');
+    state.adminProducts = data;
+  } catch (error) {
+    if (!silent) toast(error.message, { error: true });
+  }
+}
+
 function viewProductos() {
+  const data = state.adminProducts;
+  if (!data) {
+    loadProducts().then(() => render());
+    return `<div class="admin-loading">Cargando productos y stock…</div>`;
+  }
 
-  const m = state.overview.metrics;
+  const products = data.products || [];
+  const q = String(state.productQuery || '').toLowerCase().trim();
+  const cat = state.productCategory || 'all';
+  const filtered = products.filter((p) => {
+    if (cat !== 'all' && p.category !== cat) return false;
+    if (!q) return true;
+    return [p.id, p.name, p.subtitle, p.short, p.supplierSku, p.category].join(' ').toLowerCase().includes(q);
+  });
 
-  const sold = new Map(m.products.map((product) => [product.id, product]));
+  const summary = data.summary || { total: products.length, out: 0, low: 0 };
+  const totalValue = products.reduce((sum, p) => sum + (Number(p.priceArs || 0) * Number(p.inventory?.stock || 0)), 0);
+  const published = products.filter((p) => p.published !== false).length;
+  const categories = data.categories || [];
 
-  const catalog = state.catalog;
+  const catOptions = ['<option value="all">Todas las categorías</option>']
+    .concat((categories || []).filter(c => c.id !== 'todos').map(c => `<option value="${escapeHtml(c.id)}" ${cat===c.id?'selected':''}>${escapeHtml(c.label)}</option>`))
+    .join('');
 
+  const rows = filtered.map((p) => {
+    const inv = p.inventory || {};
+    const stock = Number(inv.stock || 0);
+    const sales = p.sales;
+    const status = stock <= 0 ? '<span class="badge badge--cancelled">Sin stock</span>' : stock <= (Number(inv.lowStockThreshold || 5)) ? '<span class="badge badge--payment_review">Stock bajo</span>' : '<span class="badge badge--paid">Activo</span>';
+    const margin = (p.priceArs && p.costArs) ? Math.round((1 - (Number(p.costArs) / Number(p.priceArs))) * 100) : null;
+    return `
+      <tr>
+        <td>
+          <div class="admin-table__product">
+            <img src="${escapeHtml(p.image || '')}" alt="" loading="lazy" style="width:44px;height:44px;object-fit:cover;border-radius:8px;background:#f3f0e7">
+            <div>
+              <strong>${escapeHtml(p.name || '')}</strong>
+              <small style="display:block;color:var(--muted)">${escapeHtml(p.id)} · ${escapeHtml(p.supplierSku || 'sin SKU')}</small>
+              <small style="display:block;color:var(--muted)">${escapeHtml(p.subtitle || '')}</small>
+            </div>
+          </div>
+        </td>
+        <td class="muted">${escapeHtml(categoryLabel ? categoryLabel(p.category) : (p.category || ''))}</td>
+        <td class="num">${money(p.priceArs || 0, 'ARS')}<br><small style="color:var(--muted)">Tarjeta ${p.cardPriceArs ? money(p.cardPriceArs, 'ARS') : '—'}</small></td>
+        <td class="num">${p.costArs ? money(p.costArs, 'ARS') : '—'}<br><small style="color:var(--muted)">${margin != null ? margin + '% margen' : ''}</small></td>
+        <td class="num">${nf(sales?.units || 0)}<br><small style="color:var(--muted)">${sales ? ars(sales.revenue || 0) : '—'}</small></td>
+        <td>${stockEditor({id:p.id, name:p.name, stock})}<small style="display:block;color:var(--muted);margin-top:4px">Umbral bajo: ${Number(inv.lowStockThreshold || 5)}</small></td>
+        <td>${status}<br><small style="color:var(--muted)">${p.published === false ? 'No publicado' : 'Publicado'}</small></td>
+        <td style="text-align:right"><button class="admin-btn admin-btn--primary" data-edit-product="${escapeHtml(p.id)}" style="font-size:11px;padding:7px 12px">Editar</button></td>
+      </tr>`;
+  }).join('');
 
-
-  if (!catalog) return `<div class="admin-loading">Cargando catálogo…</div>`;
-
-
-
-  const all = [...(catalog.products || []), catalog.bundle].filter(Boolean);
-
-
+  const editing = state.editingProductId;
+  const editorProduct = editing === '__new__' ? { __new: true } : products.find(p => p.id === editing);
+  const editor = editing ? renderProductEditor(editorProduct, categories) : '';
 
   return `
-
     <div class="kpi-grid">
-
-      ${kpi("SKUs activos", String(all.length), `${all.filter((product) => Number(product.stock) > 0).length} con stock`, { accent: true })}
-
-      ${kpi("Stock crítico", String(all.filter((product) => Number(product.stock) <= 5).length), `${all.filter((product) => Number(product.stock) <= 0).length} agotados`)}
-
-      ${kpi("Unidades vendidas", nf(m.kpis.units), rangeLabel(m.range))}
-
-      ${kpi("Margen bruto", ars(m.kpis.grossProfit), `${m.kpis.marginPct}% sobre ingresos`)}
-
+      ${kpi("Productos", String(products.length), `${published} publicados`, { accent: true })}
+      ${kpi("Stock total valorizado", ars(totalValue), "precio venta × stock")}
+      ${kpi("Stock bajo", String(summary.low || 0), "requieren reposición")}
+      ${kpi("Agotados", String(summary.out || 0), "sin unidades")}
     </div>
 
-
-
     <section class="admin-card">
-
       <div class="admin-card__head">
-
-        <h2>Catálogo y rentabilidad</h2>
-
-        <span>Precio de venta en ARS</span>
-
+        <div><h2>Publicación y gestión de productos</h2><span>Items, fotos, información comercial y stock para la venta</span></div>
+        <div class="admin-actions" style="margin:0"><button class="admin-btn" id="refresh-products">Actualizar</button><button class="admin-btn admin-btn--primary" id="new-product">Nuevo producto</button></div>
       </div>
-
+      <div style="display:grid;grid-template-columns:1fr 220px;gap:10px;margin-bottom:14px">
+        <input class="admin-input" id="products-search" type="search" placeholder="Buscar por nombre, SKU, categoría o descripción…" value="${escapeHtml(state.productQuery || '')}">
+        <select class="admin-select" id="products-category">${catOptions}</select>
+      </div>
+      <p class="admin-card__note" style="margin-bottom:12px">Editá precio, tarjeta, costo, descripción, categoría, badge, SKU, envío, colores, beneficios, especificaciones y fotos desde <strong>Editar</strong>. El stock se descuenta al confirmar pagos y se ajusta rápido en la tabla.</p>
       <div class="admin-table-wrap">
-
         <table class="admin-table">
-
-          <thead>
-
-            <tr>
-
-              <th>Producto</th>
-
-              <th>Categoría</th>
-
-              <th class="num">Precio</th>
-
-              <th class="num">Stock</th>
-
-              <th class="num">Unidades</th>
-
-              <th class="num">Ingresos</th>
-
-              <th class="num">Margen</th>
-
-              <th>Estado</th>
-
-            </tr>
-
-          </thead>
-
+          <thead><tr><th>Producto</th><th>Categoría</th><th class="num">Precio</th><th class="num">Costo / Margen</th><th class="num">Ventas</th><th>Stock</th><th>Estado</th><th></th></tr></thead>
           <tbody>
-
-            ${all
-
-              .map((product) => {
-
-                const entry = sold.get(product.id);
-
-                return `
-
-                <tr>
-
-                  <td>
-
-                    <div class="admin-table__product">
-
-                      <img src="${product.image}" alt="" loading="lazy">
-
-                      <div>${escapeHtml(product.name)}<small>${escapeHtml(product.subtitle || "")}</small></div>
-
-                    </div>
-
-                  </td>
-
-                  <td class="muted">${escapeHtml(categoryLabel(product.category))}</td>
-
-                  <td class="num">${money(product.priceArs, "ARS")}</td>
-
-                  <td class="num">${stockEditor(product)}</td>
-
-                  <td class="num">${entry ? nf(entry.units) : "0"}</td>
-
-                  <td class="num">${entry ? ars(entry.revenue) : "—"}</td>
-
-                  <td class="num ${entry && entry.marginPct >= 55 ? "strong" : ""}">${entry ? `${entry.marginPct.toFixed(0)}%` : "—"}</td>
-
-                  <td>${Number(product.stock) <= 0 ? `<span class="badge badge--cancelled">Agotado</span>` : Number(product.stock) <= 5 ? `<span class="badge badge--payment_review">Stock bajo</span>` : `<span class="badge badge--paid">Activo</span>`}</td>
-
-                </tr>`;
-
-              })
-
-              .join("")}
-
+            ${rows || `<tr><td colspan="8" class="muted">No hay productos para los filtros actuales.</td></tr>`}
           </tbody>
-
         </table>
-
       </div>
+    </section>
 
-      <p class="admin-card__note">El margen se calcula sobre ingresos menos costo de producto (COGS). No incluye fees de pasarela ni fulfillment; el margen neto está en el resumen.</p>
+    ${editor}
+  `;
+}
 
-    </section>`;
+function renderProductEditor(product, categories = []) {
+  const isNew = !product || product.__new || state.editingProductId === '__new__';
+  const p = (product && !product.__new) ? product : { id: '', name: '', subtitle: '', short: '', category: 'hogar', priceArs: 0, cardPriceArs: '', compareAtArs: 0, costArs: '', badge: '', image: '', gallery: [], colors: [], benefits: [], specs: {}, shippingDays: '5 a 9 días hábiles', supplierSku: '', published: true };
+  const catOptions = (categories || []).filter(c=>c.id!=='todos').map(c => `<option value="${escapeHtml(c.id)}" ${p.category===c.id?'selected':''}>${escapeHtml(c.label)}</option>`).join('');
+  const gallery = (Array.isArray(p.gallery) && p.gallery.length ? p.gallery : (p.image ? [p.image] : [])).join('\n');
+  const colors = (Array.isArray(p.colors) ? p.colors : []).join(', ');
+  const benefits = (Array.isArray(p.benefits) ? p.benefits : []).join('\n');
+  const specs = p.specs && typeof p.specs === 'object' ? Object.entries(p.specs).map(([k,v]) => `${k}: ${v}`).join('\n') : '';
+  return `
+  <section class="admin-card" id="product-editor" style="margin-top:18px;border:1px solid var(--line)">
+    <div class="admin-card__head">
+      <div><h2>${isNew ? 'Nuevo producto' : 'Editar producto'}</h2><span>${isNew ? 'Ficha completa de publicación y venta' : escapeHtml(p.name || p.id)}</span></div>
+      <button class="admin-btn" id="close-product-editor">Cerrar</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:18px;align-items:start">
+      <div style="display:grid;gap:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <label>Nombre<input class="admin-input" id="pe-name" value="${escapeHtml(p.name||'')}"></label>
+          <label>ID / slug<input class="admin-input" id="pe-id" value="${escapeHtml(p.id||'')}" ${isNew?'':'disabled'} placeholder="auto si se deja vacío"></label>
+        </div>
+        <label>Subtítulo<input class="admin-input" id="pe-subtitle" value="${escapeHtml(p.subtitle||'')}"></label>
+        <label>Descripción corta<textarea class="admin-input" id="pe-short" rows="3">${escapeHtml(p.short||'')}</textarea></label>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+          <label>Precio (ARS)<input class="admin-input" id="pe-price" type="number" min="0" value="${Number(p.priceArs||0)}"></label>
+          <label>Precio tarjeta<input class="admin-input" id="pe-card" type="number" min="0" value="${p.cardPriceArs ?? ''}" placeholder="opcional"></label>
+          <label>Costo (ARS)<input class="admin-input" id="pe-cost" type="number" min="0" value="${p.costArs ?? ''}" placeholder="COGS"></label>
+          <label>Antes (tachado)<input class="admin-input" id="pe-compare" type="number" min="0" value="${Number(p.compareAtArs||0)}"></label>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+          <label>Categoría<select class="admin-select" id="pe-category">${catOptions}</select></label>
+          <label>Badge<input class="admin-input" id="pe-badge" value="${escapeHtml(p.badge||'')}" placeholder="Oferta, Nuevo…"></label>
+          <label>SKU proveedor<input class="admin-input" id="pe-sku" value="${escapeHtml(p.supplierSku||'')}"></label>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <label>Envío<input class="admin-input" id="pe-shipping" value="${escapeHtml(p.shippingDays||'5 a 9 días hábiles')}"></label>
+          <label>Colores (separados por coma)<input class="admin-input" id="pe-colors" value="${escapeHtml(colors)}"></label>
+        </div>
+        <label>Beneficios (uno por línea)<textarea class="admin-input" id="pe-benefits" rows="4">${escapeHtml(benefits)}</textarea></label>
+        <label>Especificaciones (formato "Clave: Valor" por línea)<textarea class="admin-input" id="pe-specs" rows="4">${escapeHtml(specs)}</textarea></label>
+      </div>
+      <div style="display:grid;gap:12px">
+        <div>
+          <label>Imagen principal (URL)</label>
+          <input class="admin-input" id="pe-image" value="${escapeHtml(p.image||'')}" placeholder="/assets/products/... o URL">
+          <div style="margin-top:8px;display:flex;gap:10px;align-items:center">
+            <img id="pe-image-preview" src="${escapeHtml(p.image||'')}" alt="" style="width:96px;height:96px;object-fit:cover;border-radius:12px;background:#f3f0e7;border:1px solid var(--line)">
+            <div>
+              <input type="file" id="pe-image-file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" style="font-size:12px">
+              <button class="admin-btn" id="pe-upload-main" type="button" style="margin-top:6px">Subir imagen principal</button>
+            </div>
+          </div>
+        </div>
+        <label>Galería (una URL por línea)<textarea class="admin-input" id="pe-gallery" rows="5">${escapeHtml(gallery)}</textarea></label>
+        <div>
+          <input type="file" id="pe-gallery-file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" multiple style="font-size:12px">
+          <button class="admin-btn" id="pe-upload-gallery" type="button" style="margin-top:6px">Subir fotos a la galería</button>
+          <p class="admin-card__note" style="margin-top:6px">Las fotos subidas se guardan en <code>/public/assets/products/uploads/</code>. También podés pegar URLs externas.</p>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="pe-published" ${p.published === false ? '' : 'checked'}> Producto publicado/visible</label>
+        <div class="admin-actions">
+          <button class="admin-btn admin-btn--primary" id="pe-save">${isNew ? 'Crear producto' : 'Guardar cambios'}</button>
+        </div>
+        <p class="admin-card__note">Campos de venta incluidos: nombre, precios (venta/tarjeta/costo/tachado), categoría, badge, SKU, descripción, colores, beneficios, especificaciones, envío, imagen principal y galería. El stock se ajusta desde la tabla.</p>
+      </div>
+    </div>
+  </section>`;
+}
 
+function bindProductos() {
+  document.querySelector('#refresh-products')?.addEventListener('click', async () => {
+    state.adminProducts = null; state.editingProductId = null; await loadProducts(); render();
+  });
+  document.querySelector('#new-product')?.addEventListener('click', () => {
+    state.editingProductId = '__new__'; render();
+    setTimeout(() => document.querySelector('#product-editor')?.scrollIntoView({ behavior: 'smooth' }), 50);
+  });
+  document.querySelector('#products-search')?.addEventListener('input', (e) => { state.productQuery = e.target.value || ''; render(); const el=document.querySelector('#products-search'); if(el){el.focus(); el.setSelectionRange(el.value.length, el.value.length);} });
+  document.querySelector('#products-category')?.addEventListener('change', (e) => { state.productCategory = e.target.value || 'all'; render(); });
+  document.querySelectorAll('[data-edit-product]').forEach((btn) => btn.addEventListener('click', () => {
+    state.editingProductId = btn.dataset.editProduct; render();
+    setTimeout(() => document.querySelector('#product-editor')?.scrollIntoView({ behavior: 'smooth' }), 50);
+  }));
+  document.querySelector('#close-product-editor')?.addEventListener('click', () => { state.editingProductId = null; render(); });
+  document.querySelectorAll('[data-stock-save]').forEach((btn) => btn.addEventListener('click', () => saveStock(btn)));
+
+  const isEditing = !!state.editingProductId;
+  if (!isEditing) return;
+  const editingNew = state.editingProductId === '__new__';
+
+  const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(new Error('No se pudo leer la imagen'));
+    r.readAsDataURL(file);
+  });
+
+  async function uploadOne(file, productId) {
+    const dataUrl = await readFileAsDataUrl(file);
+    const res = await adminApi('/api/admin/products/upload-image', { method: 'POST', body: JSON.stringify({ dataUrl, filename: file.name, productId: productId || 'product' }) });
+    return res.url || res.path;
+  }
+
+  document.querySelector('#pe-upload-main')?.addEventListener('click', async () => {
+    const file = document.querySelector('#pe-image-file')?.files?.[0];
+    if (!file) return toast('Seleccioná una imagen primero.', { error: true });
+    const btn = document.querySelector('#pe-upload-main');
+    btn.disabled = true; btn.textContent = 'Subiendo…';
+    try {
+      const url = await uploadOne(file, document.querySelector('#pe-id')?.value || 'product');
+      document.querySelector('#pe-image').value = url;
+      const prev = document.querySelector('#pe-image-preview'); if (prev) prev.src = url;
+      toast('Imagen principal subida.');
+    } catch (e) { toast(e.message, { error: true }); }
+    finally { btn.disabled = false; btn.textContent = 'Subir imagen principal'; }
+  });
+
+  document.querySelector('#pe-upload-gallery')?.addEventListener('click', async () => {
+    const files = Array.from(document.querySelector('#pe-gallery-file')?.files || []);
+    if (!files.length) return toast('Seleccioná una o más imágenes.', { error: true });
+    const btn = document.querySelector('#pe-upload-gallery');
+    btn.disabled = true; btn.textContent = 'Subiendo…';
+    try {
+      const pid = document.querySelector('#pe-id')?.value || 'product';
+      const urls = [];
+      for (const f of files) urls.push(await uploadOne(f, pid));
+      const ta = document.querySelector('#pe-gallery');
+      const existing = ta.value.split('\n').map(s => s.trim()).filter(Boolean);
+      ta.value = existing.concat(urls).join('\n');
+      toast(`${urls.length} imagen(es) agregadas a la galería.`);
+    } catch (e) { toast(e.message, { error: true }); }
+    finally { btn.disabled = false; btn.textContent = 'Subir fotos a la galería'; }
+  });
+
+  document.querySelector('#pe-save')?.addEventListener('click', async () => {
+    const btn = document.querySelector('#pe-save');
+    const id = (document.querySelector('#pe-id')?.value || '').trim();
+    const body = {
+      name: document.querySelector('#pe-name')?.value || '',
+      subtitle: document.querySelector('#pe-subtitle')?.value || '',
+      short: document.querySelector('#pe-short')?.value || '',
+      priceArs: Number(document.querySelector('#pe-price')?.value || 0),
+      cardPriceArs: document.querySelector('#pe-card')?.value ? Number(document.querySelector('#pe-card').value) : undefined,
+      costArs: document.querySelector('#pe-cost')?.value ? Number(document.querySelector('#pe-cost').value) : undefined,
+      compareAtArs: Number(document.querySelector('#pe-compare')?.value || 0),
+      category: document.querySelector('#pe-category')?.value || 'hogar',
+      badge: document.querySelector('#pe-badge')?.value || '',
+      supplierSku: document.querySelector('#pe-sku')?.value || '',
+      shippingDays: document.querySelector('#pe-shipping')?.value || '',
+      colors: (document.querySelector('#pe-colors')?.value || '').split(',').map(s => s.trim()).filter(Boolean),
+      benefits: (document.querySelector('#pe-benefits')?.value || '').split('\n').map(s => s.trim()).filter(Boolean),
+      image: (document.querySelector('#pe-image')?.value || '').trim(),
+      gallery: (document.querySelector('#pe-gallery')?.value || '').split('\n').map(s => s.trim()).filter(Boolean),
+      published: !!document.querySelector('#pe-published')?.checked,
+    };
+    const specs = {};
+    (document.querySelector('#pe-specs')?.value || '').split('\n').forEach(line => {
+      const idx = line.indexOf(':');
+      if (idx > 0) { const k = line.slice(0, idx).trim(); const v = line.slice(idx+1).trim(); if (k && v) specs[k] = v; }
+    });
+    body.specs = specs;
+    if (body.gallery.length && !body.image) body.image = body.gallery[0];
+    if (!body.gallery.length && body.image) body.gallery = [body.image];
+
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    try {
+      if (editingNew) {
+        if (id) body.id = id;
+        await adminApi('/api/admin/products', { method: 'POST', body: JSON.stringify(body) });
+        toast('Producto creado.');
+      } else {
+        await adminApi('/api/admin/products/' + encodeURIComponent(state.editingProductId), { method: 'PUT', body: JSON.stringify(body) });
+        toast('Producto actualizado.');
+      }
+      state.editingProductId = null;
+      state.adminProducts = null;
+      await loadProducts();
+      await loadOverview({ silent: true });
+      render();
+    } catch (e) {
+      toast(e.message, { error: true });
+      btn.disabled = false; btn.textContent = editingNew ? 'Crear producto' : 'Guardar cambios';
+    }
+  });
 }
 
 
