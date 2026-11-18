@@ -18,3 +18,6 @@ fix_admin.cjs
 "0(set)empty"
 cloudflared.exe
 cloudflared.log
+
+# runtime logs
+*.out
